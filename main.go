@@ -22,6 +22,24 @@ func printWorld(w *core.World, n int) {
 func runWorld() {
 	world := core.World{}
 
+	world.SetBlock(core.Vec3{X: 4, Y: 1, Z: 2}, core.RedstoneBlock{})
+	world.SetBlock(
+		core.Vec3{X: 5, Y: 1, Z: 2},
+		core.RedstoneTorch{Direction: core.Right, IsPowered: true},
+	)
+	world.SetBlock(
+		core.Vec3{X: 3, Y: 1, Z: 2},
+		core.RedstoneTorch{Direction: core.Left, IsPowered: true},
+	)
+	world.SetBlock(
+		core.Vec3{X: 4, Y: 1, Z: 3},
+		core.RedstoneTorch{Direction: core.Front, IsPowered: true},
+	)
+	world.SetBlock(
+		core.Vec3{X: 4, Y: 1, Z: 1},
+		core.RedstoneTorch{Direction: core.Back, IsPowered: true},
+	)
+
 	n := 6
 	for i := 1; i < n; i++ {
 		p := core.Vec3{X: 1, Y: i, Z: 0}

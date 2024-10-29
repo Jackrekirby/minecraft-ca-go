@@ -25,12 +25,45 @@ func (v Point3D) Add(other Point3D) Point3D {
 	}
 }
 
+func (v Point3D) Subtract(other Point3D) Point3D {
+	return Point3D{
+		X: v.X - other.X,
+		Y: v.Y - other.Y,
+		Z: v.Z - other.Z,
+	}
+}
+
 func (v Point3D) Divide(other Point3D) Point3D {
 	return Point3D{
 		X: v.X / other.X,
 		Y: v.Y / other.Y,
 		Z: v.Z / other.Z,
 	}
+}
+
+func DegToRad(degrees float64) float64 {
+	return degrees * math.Pi / 180
+}
+
+// RotateX returns a new Point3D rotated around the X-axis by the given angle (in radians)
+func (p Point3D) RotateX(angle float64) Point3D {
+	y := p.Y*math.Cos(angle) - p.Z*math.Sin(angle)
+	z := p.Y*math.Sin(angle) + p.Z*math.Cos(angle)
+	return Point3D{X: p.X, Y: y, Z: z}
+}
+
+// RotateY returns a new Point3D rotated around the Y-axis by the given angle (in radians)
+func (p Point3D) RotateY(angle float64) Point3D {
+	x := p.X*math.Cos(angle) + p.Z*math.Sin(angle)
+	z := -p.X*math.Sin(angle) + p.Z*math.Cos(angle)
+	return Point3D{X: x, Y: p.Y, Z: z}
+}
+
+// RotateZ returns a new Point3D rotated around the Z-axis by the given angle (in radians)
+func (p Point3D) RotateZ(angle float64) Point3D {
+	x := p.X*math.Cos(angle) - p.Y*math.Sin(angle)
+	y := p.X*math.Sin(angle) + p.Y*math.Cos(angle)
+	return Point3D{X: x, Y: y, Z: p.Z}
 }
 
 // Point2D represents a point in 2D space.
@@ -132,14 +165,28 @@ func DrawLine3D(
 }
 
 type Cuboid struct {
-	Min   Point3D
-	Max   Point3D
-	Color color.RGBA
+	vertices [8]Point3D
+	Color    color.RGBA
+}
+
+func MakeAxisAlignedCuboid(min, max Point3D, color color.RGBA) Cuboid {
+	vertices := [...]Point3D{
+		{min.X, min.Y, min.Z}, // 0: Left-bottom-front
+		{max.X, min.Y, min.Z}, // 1: Right-bottom-front
+		{max.X, max.Y, min.Z}, // 2: Right-top-front
+		{min.X, max.Y, min.Z}, // 3: Left-top-front
+		{min.X, min.Y, max.Z}, // 4: Left-bottom-back
+		{max.X, min.Y, max.Z}, // 5: Right-bottom-back
+		{max.X, max.Y, max.Z}, // 6: Right-top-back
+		{min.X, max.Y, max.Z}, // 7: Left-top-back
+	}
+	return Cuboid{vertices, color}
 }
 
 func (c Cuboid) Move(offset Point3D) Cuboid {
-	c.Min = c.Min.Add(offset)
-	c.Max = c.Max.Add(offset)
+	for i := 0; i < 8; i++ {
+		c.vertices[i] = c.vertices[i].Add(offset)
+	}
 	return c
 }
 
@@ -148,19 +195,6 @@ func DrawCuboid(
 	fov, near, far float64,
 	img *image.RGBA,
 ) {
-	minP := cuboid.Min
-	maxP := cuboid.Max
-	vertices := [...]Point3D{
-		{minP.X, minP.Y, minP.Z}, // 0: Left-bottom-front
-		{maxP.X, minP.Y, minP.Z}, // 1: Right-bottom-front
-		{maxP.X, maxP.Y, minP.Z}, // 2: Right-top-front
-		{minP.X, maxP.Y, minP.Z}, // 3: Left-top-front
-		{minP.X, minP.Y, maxP.Z}, // 4: Left-bottom-back
-		{maxP.X, minP.Y, maxP.Z}, // 5: Right-bottom-back
-		{maxP.X, maxP.Y, maxP.Z}, // 6: Right-top-back
-		{minP.X, maxP.Y, maxP.Z}, // 7: Left-top-back
-	}
-
 	// Define the edges of the cube by connecting vertex indices
 	edges := [][2]int{
 		{0, 1}, {1, 2}, {2, 3}, {3, 0}, // Front face
@@ -171,8 +205,8 @@ func DrawCuboid(
 	// Draw each edge of the cube
 	for _, edge := range edges {
 		DrawLine3D(
-			vertices[edge[0]],
-			vertices[edge[1]],
+			cuboid.vertices[edge[0]],
+			cuboid.vertices[edge[1]],
 			fov, near, far,
 			img, cuboid.Color,
 		)
@@ -192,7 +226,7 @@ func DrawScene(world *World) {
 	gridSize := 6
 	// fHalfGridSize := float64(gridSize) / 2.0
 	globalOffset := Point3D{
-		X: -2.5, Y: -3.5, Z: 4.0,
+		X: -3.5, Y: -3.5, Z: 3.0,
 	}
 
 	for x := 0; x < gridSize; x++ {
@@ -219,7 +253,7 @@ func DrawScene(world *World) {
 						Y: float64((y + 1) * blockSize),
 						Z: float64((z + 1) * blockSize),
 					}
-					c := Cuboid{minP, maxP, color.RGBA{255, 255, 255, 255}}
+					c := MakeAxisAlignedCuboid(minP, maxP, color.RGBA{255, 255, 255, 255})
 					mc := c.Move(globalOffset)
 					DrawCuboid(mc, fov, near, far, img)
 				}

@@ -19,10 +19,10 @@ func (b RedstoneBlock) ToRune() rune {
 
 func (b RedstoneBlock) ToCuboids() []Cuboid {
 	return []Cuboid{
-		{
+		MakeAxisAlignedCuboid(
 			Point3D{0, 0, 0},
 			Point3D{1, 1, 1},
 			color.RGBA{255, 0, 0, 255},
-		},
+		),
 	}
 }

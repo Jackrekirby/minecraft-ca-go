@@ -29,12 +29,14 @@ func (b RedstoneLamp) Update(p Vec3, w *World) (Block, bool) {
 			newIsPowered = false
 		}
 
-		hasUpdated = newIsPowered != b.IsPowered
-		if hasUpdated && newIsPowered {
+		if newIsPowered {
+			hasUpdated = newIsPowered != b.IsPowered
 			b.IsPowered = newIsPowered
 			return b, hasUpdated
 		}
 	}
+	// lamp has not been powered from any direction
+	hasUpdated = !b.IsPowered
 	return b, hasUpdated
 }
 
@@ -51,10 +53,10 @@ func (b RedstoneLamp) ToCuboids() []Cuboid {
 	}
 
 	return []Cuboid{
-		{
+		MakeAxisAlignedCuboid(
 			Point3D{0, 0, 0},
 			Point3D{1, 1, 1},
 			c,
-		},
+		),
 	}
 }
