@@ -13,6 +13,10 @@ func (b RedstoneBlock) OutputsPowerInDirection(d Direction) bool {
 	return true
 }
 
+func (b RedstoneBlock) OutputsStrongPowerInDirection(d Direction) bool {
+	return true
+}
+
 func (b RedstoneBlock) ToRune() rune {
 	return 'B'
 }

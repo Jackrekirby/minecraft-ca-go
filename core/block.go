@@ -12,6 +12,14 @@ type PowerEmittingBlock interface {
 	OutputsPowerInDirection(d Direction) bool
 }
 
+type StrongPowerEmittingBlock interface {
+	OutputsStrongPowerInDirection(d Direction) bool
+}
+
+type WeakPowerEmittingBlock interface {
+	OutputsWeakPowerInDirection(d Direction) bool
+}
+
 type RenderableBlock interface {
 	ToRune() rune
 }

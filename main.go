@@ -22,57 +22,85 @@ func printWorld(w *core.World, n int) {
 func runWorld() {
 	world := core.World{}
 
-	world.SetBlock(core.Vec3{X: 4, Y: 1, Z: 2}, core.RedstoneBlock{})
-	world.SetBlock(
-		core.Vec3{X: 5, Y: 1, Z: 2},
-		core.RedstoneTorch{Direction: core.Right, IsPowered: true},
-	)
-	world.SetBlock(
-		core.Vec3{X: 3, Y: 1, Z: 2},
-		core.RedstoneTorch{Direction: core.Left, IsPowered: true},
-	)
-	world.SetBlock(
-		core.Vec3{X: 4, Y: 1, Z: 3},
-		core.RedstoneTorch{Direction: core.Front, IsPowered: true},
-	)
-	world.SetBlock(
-		core.Vec3{X: 4, Y: 1, Z: 1},
-		core.RedstoneTorch{Direction: core.Back, IsPowered: true},
-	)
+	quitGame := false
 
-	n := 6
-	for i := 1; i < n; i++ {
+	camera := core.Camera{
+		Position:    core.Point3D{X: 3.5, Y: 5.5, Z: -4},
+		Rotation:    core.Point3D{X: core.DegToRad(0), Y: core.DegToRad(0), Z: core.DegToRad(0)},
+		FOV:         90.0,
+		AspectRatio: 1.0,
+		Near:        0.1,
+		Far:         100.0,
+	}
+
+	go core.KeyboardEvents(&camera, &quitGame)
+
+	cp := core.Vec3{X: 8, Y: 2, Z: 4}
+	world.SetBlock(cp, core.RedstoneBlock{})
+	for _, d := range [4]core.Direction{core.Left, core.Right, core.Front, core.Back} {
+		world.SetBlock(
+			cp.Move(d),
+			core.RedstoneTorch{Direction: d, IsPowered: true},
+		)
+	}
+
+	for i := 2; i < 7; i++ {
+		p := core.Vec3{X: 3, Y: i, Z: 0}
+		if i%2 == 0 {
+			world.SetBlock(p, core.RedstoneLamp{InputPowerType: core.None})
+			world.SetBlock(
+				p.Move(core.Right),
+				core.RedstoneTorch{Direction: core.Right, IsPowered: true},
+			)
+		} else {
+			world.SetBlock(p.Move(core.Right), core.RedstoneLamp{InputPowerType: core.Strong})
+			world.SetBlock(
+				p,
+				core.RedstoneTorch{Direction: core.Left, IsPowered: false},
+			)
+		}
+	}
+
+	for i := 3; i < 8; i++ {
 		p := core.Vec3{X: 1, Y: i, Z: 0}
 		torch := core.RedstoneTorch{Direction: core.Up, IsPowered: i%2 == 1}
 		world.SetBlock(p, torch)
 		if i%2 == 0 {
-			world.SetBlock(p.Move(core.Right), core.RedstoneLamp{IsPowered: false})
+			world.SetBlock(p.Move(core.Left), core.RedstoneLamp{InputPowerType: core.None})
 		}
 
 	}
 
 	// fmt.Println("World [ - ]:")
-	core.DrawScene(&world)
+	core.DrawScene(&camera, &world)
 	// printWorld(&world, n)
 	time.Sleep(500 * time.Millisecond)
-	for it := 0; it < 10; it++ {
+	iteration := 0
+	for !quitGame {
 		hasAnyBlockUpdated := world.UpdateWorld()
 
-		if it == 0 {
-			p := core.Vec3{X: 1, Y: 0, Z: 0}
+		if iteration%32 == 4 {
+			p := core.Vec3{X: 1, Y: 2, Z: 0}
 			world.SetBlock(p, core.RedstoneBlock{})
+			world.SetBlock(p.Add(core.Vec3{X: 2, Y: 0, Z: 0}), core.RedstoneBlock{})
+			hasAnyBlockUpdated = true
+		} else if iteration%32 == 20 {
+			p := core.Vec3{X: 1, Y: 2, Z: 0}
+			world.SetBlock(p, core.Air{})
+			world.SetBlock(p.Add(core.Vec3{X: 2, Y: 0, Z: 0}), core.Air{})
 			hasAnyBlockUpdated = true
 		}
 
-		if !hasAnyBlockUpdated {
-			fmt.Println("No block updates")
-			break
-		}
+		// if !hasAnyBlockUpdated {
+		// 	fmt.Println("No block updates")
+		// 	// break
+		// }
 
-		fmt.Println("World [", it, "]:")
+		fmt.Println(iteration, hasAnyBlockUpdated)
 		// printWorld(&world, n)
-		core.DrawScene(&world)
+		core.DrawScene(&camera, &world)
 		time.Sleep(500 * time.Millisecond)
+		iteration = iteration + 1
 	}
 }
 

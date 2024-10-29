@@ -14,11 +14,11 @@ func (b RedstoneTorch) Type() string {
 func (b RedstoneTorch) Update(p Vec3, w *World) (Block, bool) {
 	neighbour := w.GetBlock(p.Move(b.Direction.GetOppositeDirection()))
 
-	powerEmittingBlock, canOutputPower := neighbour.(PowerEmittingBlock)
+	powerEmittingBlock, canOutputPower := neighbour.(StrongPowerEmittingBlock)
 
 	oldIsPowered := b.IsPowered
 	if canOutputPower {
-		b.IsPowered = !powerEmittingBlock.OutputsPowerInDirection(b.Direction)
+		b.IsPowered = !powerEmittingBlock.OutputsStrongPowerInDirection(b.Direction)
 	} else {
 		b.IsPowered = true
 	}
@@ -29,6 +29,14 @@ func (b RedstoneTorch) Update(p Vec3, w *World) (Block, bool) {
 
 func (b RedstoneTorch) OutputsPowerInDirection(d Direction) bool {
 	return d != b.Direction.GetOppositeDirection() && b.IsPowered
+}
+
+func (b RedstoneTorch) OutputsStrongPowerInDirection(d Direction) bool {
+	return d == Up && b.IsPowered
+}
+
+func (b RedstoneTorch) OutputsWeakPowerInDirection(d Direction) bool {
+	return b.OutputsPowerInDirection(d) && !b.OutputsStrongPowerInDirection(d)
 }
 
 func (b RedstoneTorch) ToRune() rune {
