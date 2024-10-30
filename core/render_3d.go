@@ -7,6 +7,7 @@ import (
 	"image/png"
 	"math"
 	"os"
+	"sort"
 
 	"github.com/eiannone/keyboard"
 )
@@ -283,7 +284,7 @@ func DrawCuboid(
 	}
 }
 
-func KeyboardEvents(camera *Camera, quitGame *bool) {
+func KeyboardEvents(scene *Scene) {
 	// Open the keyboard
 	err := keyboard.Open()
 	if err != nil {
@@ -293,6 +294,8 @@ func KeyboardEvents(camera *Camera, quitGame *bool) {
 	defer keyboard.Close()
 
 	fmt.Println("Listening for keyboard inputs. Press 'q' to quit.")
+
+	camera := &scene.Camera
 
 	for {
 		// Read key press
@@ -307,8 +310,15 @@ func KeyboardEvents(camera *Camera, quitGame *bool) {
 		switch key {
 		case 'q':
 			fmt.Println("Exiting...")
-			*quitGame = true
-			return
+			scene.GameState = Quit
+		case 'p':
+			if scene.GameState == Pause {
+				fmt.Println("Playing...")
+				scene.GameState = Play
+			} else if scene.GameState == Play {
+				fmt.Println("Pausing...")
+				scene.GameState = Pause
+			}
 		case 'w':
 			camera.Position = camera.Position.Add(Point3D{0, 0, delta}.RotateY(-camera.Rotation.Y))
 		case 'a':
@@ -331,7 +341,42 @@ func KeyboardEvents(camera *Camera, quitGame *bool) {
 	}
 }
 
-func DrawScene(camera *Camera, world *World) {
+// BlockDistance is a struct to hold block information along with distance from camera
+type BlockDistance struct {
+	Position Point3D
+	Distance float64
+}
+
+// ByDistance implements sort.Interface for []BlockDistance based on the Distance field
+type ByDistance []BlockDistance
+
+func (a ByDistance) Len() int           { return len(a) }
+func (a ByDistance) Less(i, j int) bool { return a[i].Distance < a[j].Distance }
+func (a ByDistance) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+
+func GetSortedBlockPositions(origin Point3D) []BlockDistance {
+	var blocks []BlockDistance
+	gridSize := 16
+	for x := 0; x < gridSize; x++ {
+		for y := 0; y < gridSize; y++ {
+			for z := 0; z < gridSize; z++ {
+				p := Point3D{float64(x), float64(y), float64(z)}
+				distance := Distance(p, origin)
+				blocks = append(blocks, BlockDistance{Position: p, Distance: distance})
+			}
+		}
+	}
+	// Sort the blocks by distance from the camera
+	sort.Sort(ByDistance(blocks))
+
+	// Print sorted blocks
+	// for _, bd := range blocks {
+	// 	fmt.Printf("Block Position: (%v, %v, %v), Distance: %v\n", bd.Position.X, bd.Position.Y, bd.Position.Z, bd.Distance)
+	// }
+	return blocks
+}
+
+func DrawScene(scene *Scene) {
 	imageSize := 512
 	img := image.NewRGBA(image.Rect(0, 0, imageSize, imageSize))
 
@@ -339,7 +384,7 @@ func DrawScene(camera *Camera, world *World) {
 
 	blockSize := 1
 
-	gridSize := 16
+	// gridSize := 16
 	// fHalfGridSize := float64(gridSize) / 2.0
 
 	// Constants for alpha scaling
@@ -348,52 +393,51 @@ func DrawScene(camera *Camera, world *World) {
 	const maxDistance = 16.0 // Distance at which alpha should be fully transparent
 	const minDistance = 8.0  // Distance at which alpha is fully opaque
 
-	for x := 0; x < gridSize; x++ {
-		for y := 0; y < gridSize; y++ {
-			for z := 0; z < gridSize; z++ {
-				block := world.GetBlock(Vec3{x, y, z})
-				rb, isRenderable := block.(WireRenderBlock)
-				localOffset := Point3D{float64(x), float64(y), float64(z)}
-				cameraHorPos := camera.Position
-				cameraHorPos.Y = localOffset.Y
-				distance := Distance(localOffset, cameraHorPos)
-				var alphaScaling float64
+	for _, bd := range GetSortedBlockPositions(scene.Camera.Position) {
+		p := Vec3{int(bd.Position.X), int(bd.Position.Y), int(bd.Position.Z)}
+		block := scene.World.GetBlock(p)
+		rb, isRenderable := block.(WireRenderBlock)
+		localOffset := bd.Position
+		cameraHorPos := scene.Camera.Position
+		cameraHorPos.Y = localOffset.Y
+		distance := Distance(localOffset, cameraHorPos)
+		var alphaScaling float64
 
-				if distance >= maxDistance {
-					alphaScaling = minAlpha
-				} else if distance <= minDistance {
-					alphaScaling = maxAlpha
-				} else {
-					alphaScaling = maxAlpha * (1 - (distance / maxDistance))
-				}
+		if distance >= maxDistance {
+			alphaScaling = minAlpha
+		} else if distance <= minDistance {
+			alphaScaling = maxAlpha
+		} else {
+			alphaScaling = maxAlpha * (1 - (distance / maxDistance))
+		}
 
-				if isRenderable {
-					for _, c := range rb.ToCuboids() {
+		if isRenderable {
+			for _, c := range rb.ToCuboids() {
 
-						mc := c.Move(localOffset)
+				mc := c.Move(localOffset)
 
-						mc.Color.A = uint8(float64(mc.Color.A) * alphaScaling)
-						// fmt.Println(mc, globalOffset, localOffset)
-						DrawCuboid(mc, *camera, img)
-					}
-				} else if y == 0 {
-					minP := Point3D{
-						X: float64(x * blockSize),
-						Y: float64(y * blockSize),
-						Z: float64(z * blockSize),
-					}
-					maxP := Point3D{
-						X: float64((x + 1) * blockSize),
-						Y: float64((y + 1) * blockSize),
-						Z: float64((z + 1) * blockSize),
-					}
-					c := MakeAxisAlignedCuboid(minP, maxP, color.RGBA{255, 255, 255, 100})
-					c.Color.A = uint8(float64(c.Color.A) * alphaScaling)
-					DrawCuboid(c, *camera, img)
-				}
+				mc.Color.A = uint8(float64(mc.Color.A) * alphaScaling)
+				// fmt.Println(mc, globalOffset, localOffset)
+				DrawCuboid(mc, scene.Camera, img)
 			}
+		} else if p.Y == 0 {
+			minP := Point3D{
+				X: float64(p.X * blockSize),
+				Y: float64(p.Y * blockSize),
+				Z: float64(p.Z * blockSize),
+			}
+			maxP := Point3D{
+				X: float64((p.X + 1) * blockSize),
+				Y: float64((p.Y + 1) * blockSize),
+				Z: float64((p.Z + 1) * blockSize),
+			}
+			c := MakeAxisAlignedCuboid(minP, maxP, color.RGBA{255, 255, 255, 100})
+			c.Color.A = uint8(float64(c.Color.A) * alphaScaling)
+			DrawCuboid(c, scene.Camera, img)
 		}
 	}
+
+	DrawText(img, 4, 28, fmt.Sprintf("F/S: %d, U/I %d", scene.Iteration, scene.NumBlockUpdatesInStep), Cyan.ToRGBA(), scene.FontFace)
 
 	// Create the output file
 	file, err := os.Create("scene.png")

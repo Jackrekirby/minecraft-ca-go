@@ -14,11 +14,11 @@ func (b RedstoneTorch) Type() string {
 func (b RedstoneTorch) Update(p Vec3, w *World) (Block, bool) {
 	neighbour := w.GetBlock(p.Move(b.Direction.GetOppositeDirection()))
 
-	powerEmittingBlock, canOutputPower := neighbour.(StrongPowerEmittingBlock)
+	powerEmittingBlock, canOutputPower := neighbour.(PowerEmittingBlock)
 
 	oldIsPowered := b.IsPowered
 	if canOutputPower {
-		b.IsPowered = !powerEmittingBlock.OutputsStrongPowerInDirection(b.Direction)
+		b.IsPowered = !powerEmittingBlock.OutputsPowerInDirection(b.Direction)
 	} else {
 		b.IsPowered = true
 	}

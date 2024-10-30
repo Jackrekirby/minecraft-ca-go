@@ -42,21 +42,21 @@ func (w *World) UpdateBlock(p Vec3) (Block, bool) {
 	return b, false
 }
 
-func (w *World) UpdateWorld() bool {
+func (w *World) UpdateWorld() int {
 	nextWorld := World{}
-	hasAnyBlockUpdated := false
+	numUpdates := 0
 	for x := 0; x < WorldWidth; x++ {
 		for y := 0; y < WorldHeight; y++ {
 			for z := 0; z < WorldDepth; z++ {
 				p := Vec3{X: x, Y: y, Z: z}
 				block, hasUpdated := w.UpdateBlock(p)
 				if hasUpdated {
-					hasAnyBlockUpdated = hasUpdated
+					numUpdates += 1
 				}
 				nextWorld.SetBlock(p, block)
 			}
 		}
 	}
 	*w = nextWorld
-	return hasAnyBlockUpdated
+	return numUpdates
 }

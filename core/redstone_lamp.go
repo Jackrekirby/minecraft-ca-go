@@ -19,38 +19,41 @@ func (b RedstoneLamp) Type() string {
 }
 
 func (b RedstoneLamp) OutputsPowerInDirection(d Direction) bool {
-	return b.InputPowerType != None
-}
-
-func (b RedstoneLamp) OutputsStrongPowerInDirection(d Direction) bool {
 	return b.InputPowerType == Strong
 }
 
-func (b RedstoneLamp) OutputsWeakPowerInDirection(d Direction) bool {
-	return b.InputPowerType == Weak
+func (b RedstoneLamp) OutputsStrongPowerInDirection(d Direction) bool {
+	return false
 }
 
-func (b RedstoneLamp) Update(p Vec3, w *World) (Block, bool) {
-	var hasUpdated bool = false
-	var newInputPowerType PowerType = None
+func (b RedstoneLamp) OutputsWeakPowerInDirection(d Direction) bool {
+	return b.InputPowerType == Strong
+}
+
+func UpdateInputPowerType(p Vec3, w *World) PowerType {
+	var inputPowerType PowerType = None
 	// Up, Down, Left, Right, Front, Back
 	for _, d := range [...]Direction{Up, Down, Left, Right, Front, Back} {
 		neighbour := w.GetBlock(p.Move(d.GetOppositeDirection()))
 
 		strongPowerEmittingBlock, canOutputStrongPower := neighbour.(StrongPowerEmittingBlock)
 
-		if canOutputStrongPower && newInputPowerType != Strong && strongPowerEmittingBlock.OutputsStrongPowerInDirection(d) {
-			newInputPowerType = Strong
+		if canOutputStrongPower && inputPowerType != Strong && strongPowerEmittingBlock.OutputsStrongPowerInDirection(d) {
+			inputPowerType = Strong
 			break
 		} else {
 			weakPowerEmittingBlock, canOutputWeakPower := neighbour.(WeakPowerEmittingBlock)
-			if canOutputWeakPower && newInputPowerType == None && weakPowerEmittingBlock.OutputsWeakPowerInDirection(d) {
-				newInputPowerType = Weak
+			if canOutputWeakPower && inputPowerType == None && weakPowerEmittingBlock.OutputsWeakPowerInDirection(d) {
+				inputPowerType = Weak
 			}
 		}
 	}
-	// lamp has not been powered/or is weak powered from any direction
-	hasUpdated = newInputPowerType != b.InputPowerType
+	return inputPowerType
+}
+
+func (b RedstoneLamp) Update(p Vec3, w *World) (Block, bool) {
+	var newInputPowerType PowerType = UpdateInputPowerType(p, w)
+	hasUpdated := newInputPowerType != b.InputPowerType
 	b.InputPowerType = newInputPowerType
 	return b, hasUpdated
 }
