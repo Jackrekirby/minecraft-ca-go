@@ -8,154 +8,7 @@ import (
 	"math"
 	"os"
 	"sort"
-
-	"github.com/eiannone/keyboard"
 )
-
-// Point3D represents a point in 3D space.
-type Point3D struct {
-	X, Y, Z float64
-}
-
-func Point3DFromScalar(s float64) Point3D {
-	return Point3D{s, s, s}
-}
-
-func (v Point3D) Add(other Point3D) Point3D {
-	return Point3D{
-		X: v.X + other.X,
-		Y: v.Y + other.Y,
-		Z: v.Z + other.Z,
-	}
-}
-
-func (v Point3D) Subtract(other Point3D) Point3D {
-	return Point3D{
-		X: v.X - other.X,
-		Y: v.Y - other.Y,
-		Z: v.Z - other.Z,
-	}
-}
-
-func (v Point3D) Divide(other Point3D) Point3D {
-	return Point3D{
-		X: v.X / other.X,
-		Y: v.Y / other.Y,
-		Z: v.Z / other.Z,
-	}
-}
-
-func Distance(p1, p2 Point3D) float64 {
-	p := p2.Subtract(p1)
-	// fmt.Println(p1, p2, p, math.Sqrt(p.X*p.X+p.Y*p.Y+p.Z*p.Z))
-	return math.Sqrt(p.X*p.X + p.Y*p.Y + p.Z*p.Z)
-}
-
-func DegToRad(degrees float64) float64 {
-	return degrees * math.Pi / 180
-}
-
-// RotateX returns a new Point3D rotated around the X-axis by the given angle (in radians)
-func (p Point3D) RotateX(angle float64) Point3D {
-	y := p.Y*math.Cos(angle) - p.Z*math.Sin(angle)
-	z := p.Y*math.Sin(angle) + p.Z*math.Cos(angle)
-	return Point3D{X: p.X, Y: y, Z: z}
-}
-
-// RotateY returns a new Point3D rotated around the Y-axis by the given angle (in radians)
-func (p Point3D) RotateY(angle float64) Point3D {
-	x := p.X*math.Cos(angle) + p.Z*math.Sin(angle)
-	z := -p.X*math.Sin(angle) + p.Z*math.Cos(angle)
-	return Point3D{X: x, Y: p.Y, Z: z}
-}
-
-// RotateZ returns a new Point3D rotated around the Z-axis by the given angle (in radians)
-func (p Point3D) RotateZ(angle float64) Point3D {
-	x := p.X*math.Cos(angle) - p.Y*math.Sin(angle)
-	y := p.X*math.Sin(angle) + p.Y*math.Cos(angle)
-	return Point3D{X: x, Y: y, Z: p.Z}
-}
-
-// Point2D represents a point in 2D space.
-type Point2D struct {
-	X, Y float64
-}
-
-// Camera represents the camera in 3D space, with position, rotation, and projection parameters
-type Camera struct {
-	Position    Point3D
-	Rotation    Point3D
-	FOV         float64
-	AspectRatio float64
-	Near        float64
-	Far         float64
-}
-
-// Convert3DTo2D projects a 3D point onto a 2D plane using perspective projection, considering the camera's position and orientation
-func (c *Camera) Convert3DTo2D(point Point3D) Point2D {
-	// Translate the point by the camera position
-	p := point.
-		Subtract(c.Position).
-		RotateX(c.Rotation.X).
-		RotateY(c.Rotation.Y).
-		RotateZ(c.Rotation.Z)
-
-	// Check if the point is behind the camera
-	if p.Z <= 0 {
-		return Point2D{X: 0, Y: 0}
-	}
-
-	// Perspective projection
-	fovRad := 1.0 / math.Tan(c.FOV*0.5*math.Pi/180)
-	q := c.Far / (c.Far - c.Near)
-
-	ndcX := p.X * fovRad * c.AspectRatio
-	ndcY := p.Y * fovRad
-	ndcZ := p.Z * q
-
-	// Project to screen coordinates
-	screenX := ndcX / ndcZ
-	screenY := ndcY / ndcZ
-
-	return Point2D{X: screenX, Y: screenY}
-}
-
-// Convert3DTo2D projects a 3D point onto a 2D plane using perspective projection.
-func Convert3DTo2D(point Point3D, fov, aspectRatio, near, far float64) Point2D {
-	fovRad := 1.0 / math.Tan(fov*0.5*math.Pi/180)
-	q := far / (far - near)
-
-	ndcX := point.X * fovRad * aspectRatio
-	ndcY := point.Y * fovRad
-	ndcZ := point.Z * q
-
-	if point.Z <= 0 {
-		return Point2D{X: 0, Y: 0}
-	}
-
-	screenX := ndcX / ndcZ
-	screenY := ndcY / ndcZ
-
-	return Point2D{X: screenX, Y: screenY}
-}
-
-func CombineColors(src color.RGBA, dst color.RGBA) color.RGBA {
-	// Calculate the new alpha
-	alpha := float64(src.A) / 255.0
-	newA := uint8(float64(src.A) + float64(dst.A)*(1-alpha))
-
-	// If the new alpha is zero, return transparent black
-	if newA == 0 {
-		return color.RGBA{0, 0, 0, 0}
-	}
-
-	// Blend the colors based on the alpha
-	newR := uint8((float64(dst.R)*(1-alpha) + float64(src.R)*alpha) * (float64(newA) / 255.0))
-	newG := uint8((float64(dst.G)*(1-alpha) + float64(src.G)*alpha) * (float64(newA) / 255.0))
-	newB := uint8((float64(dst.B)*(1-alpha) + float64(src.B)*alpha) * (float64(newA) / 255.0))
-
-	return color.RGBA{R: newR, G: newG, B: newB, A: newA}
-}
 
 func DrawBox2D(x, y, size int, col color.RGBA, img *image.RGBA) {
 	for i := -size / 2; i <= size/2; i++ {
@@ -284,63 +137,6 @@ func DrawCuboid(
 	}
 }
 
-func KeyboardEvents(scene *Scene) {
-	// Open the keyboard
-	err := keyboard.Open()
-	if err != nil {
-		fmt.Println("Error opening keyboard:", err)
-		return
-	}
-	defer keyboard.Close()
-
-	fmt.Println("Listening for keyboard inputs. Press 'q' to quit.")
-
-	camera := &scene.Camera
-
-	for {
-		// Read key press
-		key, _, err := keyboard.GetKey()
-		if err != nil {
-			fmt.Println("Error reading key:", err)
-			break
-		}
-		delta := 1.0
-		rotation := DegToRad(15)
-		// Handle key press
-		switch key {
-		case 'q':
-			fmt.Println("Exiting...")
-			scene.GameState = Quit
-		case 'p':
-			if scene.GameState == Pause {
-				fmt.Println("Playing...")
-				scene.GameState = Play
-			} else if scene.GameState == Play {
-				fmt.Println("Pausing...")
-				scene.GameState = Pause
-			}
-		case 'w':
-			camera.Position = camera.Position.Add(Point3D{0, 0, delta}.RotateY(-camera.Rotation.Y))
-		case 'a':
-			camera.Position = camera.Position.Add(Point3D{-delta, 0, 0}.RotateY(-camera.Rotation.Y))
-		case 's':
-			camera.Position = camera.Position.Add(Point3D{0, 0, -delta}.RotateY(-camera.Rotation.Y))
-		case 'd':
-			camera.Position = camera.Position.Add(Point3D{delta, 0, 0}.RotateY(-camera.Rotation.Y))
-		case 'e':
-			camera.Position = camera.Position.Add(Point3D{0, 1, 0})
-		case 'c':
-			camera.Position = camera.Position.Add(Point3D{0, -1, 0})
-		case 'z':
-			camera.Rotation.Y = camera.Rotation.Y + rotation
-		case 'x':
-			camera.Rotation.Y = camera.Rotation.Y - rotation
-		default:
-			fmt.Println("Pressed:", key)
-		}
-	}
-}
-
 // BlockDistance is a struct to hold block information along with distance from camera
 type BlockDistance struct {
 	Position Point3D
@@ -437,7 +233,7 @@ func DrawScene(scene *Scene) {
 		}
 	}
 
-	DrawText(img, 4, 28, fmt.Sprintf("F/S: %d, U/I %d", scene.Iteration, scene.NumBlockUpdatesInStep), Cyan.ToRGBA(), scene.FontFace)
+	DrawText(img, 4, 28, fmt.Sprintf("F/S: %d, U/I %d, S: %s", scene.Iteration, scene.NumBlockUpdatesInStep, scene.GameState.String()), Cyan.ToRGBA(), scene.FontFace)
 
 	// Create the output file
 	file, err := os.Create("scene.png")

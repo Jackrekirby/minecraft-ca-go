@@ -89,3 +89,21 @@ func (w Color) String() string {
 func (c Color) ToRGBA() color.RGBA {
 	return Colors[c]
 }
+
+func CombineColors(src color.RGBA, dst color.RGBA) color.RGBA {
+	// Calculate the new alpha
+	alpha := float64(src.A) / 255.0
+	newA := uint8(float64(src.A) + float64(dst.A)*(1-alpha))
+
+	// If the new alpha is zero, return transparent black
+	if newA == 0 {
+		return color.RGBA{0, 0, 0, 0}
+	}
+
+	// Blend the colors based on the alpha
+	newR := uint8((float64(dst.R)*(1-alpha) + float64(src.R)*alpha) * (float64(newA) / 255.0))
+	newG := uint8((float64(dst.G)*(1-alpha) + float64(src.G)*alpha) * (float64(newA) / 255.0))
+	newB := uint8((float64(dst.B)*(1-alpha) + float64(src.B)*alpha) * (float64(newA) / 255.0))
+
+	return color.RGBA{R: newR, G: newG, B: newB, A: newA}
+}
