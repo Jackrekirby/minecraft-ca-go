@@ -37,6 +37,28 @@ func (v Point3D) Divide(other Point3D) Point3D {
 	}
 }
 
+func (v Point3D) Multiply(other Point3D) Point3D {
+	return Point3D{
+		X: v.X * other.X,
+		Y: v.Y * other.Y,
+		Z: v.Z * other.Z,
+	}
+}
+
+func Normalize(v Point3D) Point3D {
+	length := math.Sqrt(v.X*v.X + v.Y*v.Y + v.Z*v.Z)
+	if length != 0 {
+		v.X /= length
+		v.Y /= length
+		v.Z /= length
+	}
+	return v
+}
+
+func DotProduct(u, v Point3D) float64 {
+	return u.X*v.X + u.Y*v.Y + u.Z*v.Z
+}
+
 func Distance(p1, p2 Point3D) float64 {
 	p := p2.Subtract(p1)
 	// fmt.Println(p1, p2, p, math.Sqrt(p.X*p.X+p.Y*p.Y+p.Z*p.Z))
@@ -66,4 +88,14 @@ func (p Point3D) RotateZ(angle float64) Point3D {
 	x := p.X*math.Cos(angle) - p.Y*math.Sin(angle)
 	y := p.X*math.Sin(angle) + p.Y*math.Cos(angle)
 	return Point3D{X: x, Y: y, Z: p.Z}
+}
+
+func RotateVector(forward Point3D, rotation Point3D) Point3D {
+	// Apply the rotations in order: first pitch (X), then yaw (Y), then roll (Z)
+	rotated := forward.
+		RotateX(rotation.X). // Rotate around X-axis (pitch)
+		RotateY(rotation.Y). // Rotate around Y-axis (yaw)
+		RotateZ(rotation.Z)  // Rotate around Z-axis (roll)
+
+	return rotated
 }

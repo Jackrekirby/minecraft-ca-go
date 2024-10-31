@@ -13,7 +13,7 @@ type Camera struct {
 }
 
 // Convert3DTo2D projects a 3D point onto a 2D plane using perspective projection, considering the camera's position and orientation
-func (c *Camera) Convert3DTo2D(point Point3D) Point2D {
+func (c *Camera) Convert3DTo2D(point Point3D) *Point2D {
 	// Translate the point by the camera position
 	p := point.
 		Subtract(c.Position).
@@ -21,9 +21,9 @@ func (c *Camera) Convert3DTo2D(point Point3D) Point2D {
 		RotateY(c.Rotation.Y).
 		RotateZ(c.Rotation.Z)
 
-	// Check if the point is behind the camera
-	if p.Z <= 0 {
-		return Point2D{X: 0, Y: 0}
+	// Check if the point is outside the viewable range
+	if p.Z <= c.Near || p.Z >= c.Far {
+		return nil // Return nil if the point is outside the near and far planes
 	}
 
 	// Perspective projection
@@ -38,7 +38,7 @@ func (c *Camera) Convert3DTo2D(point Point3D) Point2D {
 	screenX := ndcX / ndcZ
 	screenY := ndcY / ndcZ
 
-	return Point2D{X: screenX, Y: screenY}
+	return &Point2D{X: screenX, Y: screenY}
 }
 
 // Convert3DTo2D projects a 3D point onto a 2D plane using perspective projection.

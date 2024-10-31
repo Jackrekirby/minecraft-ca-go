@@ -4,3 +4,13 @@ package core
 type Point2D struct {
 	X, Y float64
 }
+
+type ImgPoint struct {
+	X, Y int
+	Z    float64
+	U, V int
+}
+
+type Int_2D struct {
+	X, Y int
+}

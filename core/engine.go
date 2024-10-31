@@ -8,16 +8,19 @@ import (
 )
 
 type Scene struct {
-	Iteration                         int
-	GameState                         GameState
-	Camera                            Camera
-	World                             World
+	Iteration int
+	GameState GameState
+	Camera    Camera
+	World     World
+	// metrics
 	FramesPerSecond                   int
 	StepsPerSecond                    int
 	SubStepsPerSecond                 int
 	NumBlockUpdatesInStep             int
 	NumBlockSubUpdateIterationsInStep int
 	NumBlockSubUpdatesInStep          int
+	RecordedFramesPerSecond           int
+	RecordedStepsPerSecond            int
 
 	FontFace font.Face // should be a store of multiple fonts or internal handler for loaded assets
 }
@@ -29,8 +32,15 @@ func ratePerSecondToDuration(rate int) time.Duration {
 func runRenderLoop(scene *Scene) {
 	period := ratePerSecondToDuration(scene.FramesPerSecond)
 	for scene.GameState != Quit {
+		startTime := time.Now()
 		DrawScene(scene)
-		time.Sleep(period)
+		elapsedTime := time.Since(startTime)
+		scene.RecordedFramesPerSecond = int(1.0 / elapsedTime.Seconds())
+		sleepTime := period - elapsedTime
+		if sleepTime < 0 {
+			fmt.Println("Render loop cannot meet target rate")
+		}
+		time.Sleep(sleepTime)
 	}
 }
 
@@ -40,6 +50,7 @@ func runGameLoop(scene *Scene) {
 	scene.Iteration = 0
 	maxSubUpdateIterations := 50
 	for scene.GameState != Quit {
+		startTime := time.Now()
 		if scene.GameState == Playing || scene.GameState == Pausing {
 			numUpdates := 0
 			// Process User Inputs
@@ -70,7 +81,17 @@ func runGameLoop(scene *Scene) {
 				scene.GameState = Paused
 			}
 		}
-		time.Sleep(period)
+		elapsedTime := time.Since(startTime)
+		if elapsedTime.Seconds() < (1.0 / 10000.0) {
+			scene.RecordedStepsPerSecond = 10000.0
+		} else {
+			scene.RecordedStepsPerSecond = int(1.0 / elapsedTime.Seconds())
+		}
+		sleepTime := period - elapsedTime
+		if sleepTime < 0 {
+			fmt.Println("Game loop cannot meet target rate")
+		}
+		time.Sleep(sleepTime)
 	}
 }
 
@@ -118,7 +139,7 @@ func RunEngine() {
 	}
 	scene.FontFace = fontFace
 
-	createWorld(&scene.World)
+	// createWorld(&scene.World)
 
 	go KeyboardEvents(&scene)
 	go runRenderLoop(&scene)

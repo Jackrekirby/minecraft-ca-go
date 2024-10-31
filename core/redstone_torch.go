@@ -58,13 +58,13 @@ func (b RedstoneTorch) ToCuboids() []Cuboid {
 
 	torch_base := MakeAxisAlignedCuboid(
 		Point3D{7, 0, 7}.Divide(s),
-		Point3D{9, 9, 9}.Divide(s),
+		Point3D{9, 7, 9}.Divide(s),
 		color.RGBA{160, 127, 81, 255},
 	)
 
 	torch_head := MakeAxisAlignedCuboid(
-		Point3D{7, 10, 7}.Divide(s),
-		Point3D{9, 12, 9}.Divide(s),
+		Point3D{7, 7, 7}.Divide(s),
+		Point3D{9, 9, 9}.Divide(s),
 		color.RGBA{c, 0, 0, 255},
 	)
 
@@ -79,25 +79,25 @@ func (b RedstoneTorch) ToCuboids() []Cuboid {
 	case Left:
 		ry = 0
 		rz = 45
-		offset = Point3D{0.25, 0, 0}
+		offset = Point3D{5, 2, 0}.Divide(s)
 	case Right:
 		ry = 180
 		rz = 45
-		offset = Point3D{-0.25, 0, 0}
+		offset = Point3D{-5, 2, 0}.Divide(s)
 	case Front:
 		ry = 90
 		rz = 45
-		offset = Point3D{0, 0, -0.25}
+		offset = Point3D{0, 2, -5}.Divide(s)
 	case Back:
 		ry = 270
 		rz = 45
-		offset = Point3D{0, 0, 0.25}
+		offset = Point3D{0, 2, 5}.Divide(s)
 	}
 
 	for j := range cuboids {
 		for i := 0; i < 8; i++ {
 			cuboid := &cuboids[j]
-			translate := Point3D{8, 4.5, 8}.Divide(s)
+			translate := Point3D{8, 3.5, 8}.Divide(s)
 			cuboid.vertices[i] = cuboid.vertices[i].Subtract(translate).RotateZ(DegToRad(rz)).RotateY(DegToRad(ry)).Add(translate).Add(offset)
 		}
 	}

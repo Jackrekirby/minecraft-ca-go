@@ -6,6 +6,21 @@ import (
 	"github.com/eiannone/keyboard"
 )
 
+func createSimpleWorld(world *World) {
+	// levers arond a lamp
+	p := Vec3{X: 0, Y: 2, Z: 0}
+	// world.SetBlock(p, RedstoneLamp{InputPowerType: None})
+	//world.SetBlock(p.Move(Up), WoolBlock{Cyan, None})
+	world.SetBlock(p.Move(Up), RedstoneTorch{Direction: Up, IsPowered: true})
+
+	// for _, d := range [6]Direction{Left, Right, Front, Back, Up, Down} {
+	// 	world.SetBlock(
+	// 		p.Move(d),
+	// 		Lever{Direction: d, IsOn: false},
+	// 	)
+	// }
+}
+
 func createWorld(world *World) {
 	// levers arond a lamp
 	p := Vec3{X: 2, Y: 2, Z: 4}
@@ -102,6 +117,7 @@ func ProcessUserInputs(iteration int, world *World) bool {
 	var hasAnyBlockUpdated bool = false
 	if iteration == 0 {
 		createWorld(world)
+		// createSimpleWorld(world)
 		hasAnyBlockUpdated = true
 	}
 	if iteration%32 == 4 || iteration%32 == 20 {

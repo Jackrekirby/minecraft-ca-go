@@ -7,7 +7,6 @@ import (
 	"image/png"
 	"math"
 	"os"
-	"sort"
 
 	"golang.org/x/image/math/fixed"
 )
@@ -28,38 +27,47 @@ func DrawBox2D(x, y, size int, col color.RGBA, img *image.RGBA) {
 }
 
 // DrawLine draws a line between two 2D points on the image using Bresenham's algorithm.
-func DrawLine(img *image.RGBA, p1, p2 Point2D, col color.RGBA) {
-	x0, y0 := int(p1.X), int(p1.Y)
-	x1, y1 := int(p2.X), int(p2.Y)
-
-	dx := int(math.Abs(float64(x1 - x0)))
+func DrawLine(img *image.RGBA, p0, p1 Int_2D, col color.RGBA) {
+	dx := int(math.Abs(float64(p1.X - p0.X)))
 	sx := -1
-	if x0 < x1 {
+	if p0.X < p1.X {
 		sx = 1
 	}
-	dy := -int(math.Abs(float64(y1 - y0)))
+	dy := -int(math.Abs(float64(p1.Y - p0.Y)))
 	sy := -1
-	if y0 < y1 {
+	if p0.Y < p1.Y {
 		sy = 1
 	}
 	err := dx + dy
 
 	for {
-		// img.Set(x0, y0, col)
-		DrawBox2D(x0, y0, 1, col, img)
-		if x0 == x1 && y0 == y1 {
+		// img.Set(p0.X, p0.Y, col)
+		DrawBox2D(p0.X, p0.Y, 1, col, img)
+		if p0.X == p1.X && p0.Y == p1.Y {
 			break
 		}
 		e2 := 2 * err
 		if e2 >= dy {
 			err += dy
-			x0 += sx
+			p0.X += sx
 		}
 		if e2 <= dx {
 			err += dx
-			y0 += sy
+			p0.Y += sy
 		}
 	}
+}
+
+func ProjectPoint(p Point3D, camera Camera, imageSize Point2D) *Int_2D {
+	p2 := camera.Convert3DTo2D(p)
+	if p2 == nil {
+		return nil
+	}
+	int_2d := Int_2D{
+		int(p2.X*imageSize.X/2 + imageSize.X/2),
+		int(-p2.Y*imageSize.Y/2 + imageSize.Y/2),
+	}
+	return &int_2d
 }
 
 func DrawLine3D(
@@ -69,25 +77,202 @@ func DrawLine3D(
 	color color.RGBA,
 ) {
 	// Get image dimensions
-	imageWidth := float64(img.Bounds().Dx())
-	imageHeight := float64(img.Bounds().Dy())
+	imageSize := Point2D{float64(img.Bounds().Dx()), float64(img.Bounds().Dy())}
 
 	// Project the points to 2D
-	p2Start := camera.Convert3DTo2D(p0)
-	p2End := camera.Convert3DTo2D(p1)
+	p2Start := ProjectPoint(p0, camera, imageSize)
+	p2End := ProjectPoint(p1, camera, imageSize)
 
-	if (p2Start.X == 0 && p2Start.Y == 0) || (p2End.X == 0 && p2End.Y == 0) {
+	if p2Start != nil && p2End != nil {
+		DrawLine(img, *p2Start, *p2End, color)
+	}
+}
+
+func DrawTriangle2D(img *image.RGBA, p1, p2, p3 ImgPoint, col color.RGBA,
+	depthBuffer *DepthBuffer) {
+	imageSize := Int_2D{img.Bounds().Dx(), img.Bounds().Dy()}
+	// Sort vertices by Y-coordinate (p1 is the topmost, p3 is the bottommost)
+	if p2.Y < p1.Y {
+		p1, p2 = p2, p1
+	}
+	if p3.Y < p1.Y {
+		p1, p3 = p3, p1
+	}
+	if p3.Y < p2.Y {
+		p2, p3 = p3, p2
+	}
+
+	// col = color.RGBA{uint8(p1.X * 10 % 255), uint8(p2.X * 10 % 255), uint8(p3.X * 10 % 255), 255}
+	// Draw the triangle outline
+	// DrawLine(img, p1, p2, White.ToRGBA())
+	// DrawLine(img, p2, p3, White.ToRGBA())
+	// DrawLine(img, p3, p1, White.ToRGBA())
+
+	// return
+
+	// Fill the triangle with a horizontal scanline
+	yStart := max(int(p1.Y), 0)
+	yEnd := min(int(p3.Y), imageSize.Y-1)
+
+	for y := yStart; y <= yEnd; y++ {
+		var xStart, xEnd int
+		var zStart, zEnd float64
+
+		// Calculate x and z coordinates for each edge intersection at this Y level
+		if y < int(p2.Y) {
+			// ip0 := interpolateImgPoint(p1, p3, y)
+			// ip1 := interpolateImgPoint(p1, p2, y)
+			xStart = interpolateX(p1, p3, y)
+			xEnd = interpolateX(p1, p2, y)
+			zStart = interpolateZ(p1, p3, y)
+			zEnd = interpolateZ(p1, p2, y)
+		} else {
+			xStart = interpolateX(p1, p3, y)
+			xEnd = interpolateX(p2, p3, y)
+			zStart = interpolateZ(p1, p3, y)
+			zEnd = interpolateZ(p2, p3, y)
+		}
+
+		if xStart > xEnd {
+			xStart, xEnd = xEnd, xStart
+			zStart, zEnd = zEnd, zStart
+		}
+		xStart = max(xStart, 0)
+		xEnd = min(xEnd, imageSize.X-1)
+
+		// Draw the horizontal line, interpolating depth along the line
+		for x := xStart; x <= xEnd; x++ {
+			// Only draw if this pixel is closer than the current depth buffer value
+			dbi := y*int(imageSize.X) + x
+			if dbi > len(*depthBuffer) {
+				fmt.Println(dbi, len(*depthBuffer), x, y, imageSize.X)
+				panic("Index out of range")
+			}
+
+			t := float64(x-xStart) / float64(xEnd-xStart)
+			z := zStart + t*(zEnd-zStart)
+
+			if z < (*depthBuffer)[dbi] {
+				(*depthBuffer)[dbi] = z // Update the depth buffer
+				img.Set(x, y, col)
+			}
+		}
+	}
+}
+
+// Calculate the normal vector of the triangle given three vertices in 3D space.
+func CalculateNormal(v1, v2, v3 Point3D) Point3D {
+	// Calculate two edges of the triangle
+	edge1 := Point3D{v2.X - v1.X, v2.Y - v1.Y, v2.Z - v1.Z}
+	edge2 := Point3D{v3.X - v1.X, v3.Y - v1.Y, v3.Z - v1.Z}
+
+	// Compute the cross product of the two edges
+	normal := Point3D{
+		edge1.Y*edge2.Z - edge1.Z*edge2.Y,
+		edge1.Z*edge2.X - edge1.X*edge2.Z,
+		edge1.X*edge2.Y - edge1.Y*edge2.X,
+	}
+
+	return Normalize(normal)
+}
+
+func ShadeColor(baseColor color.RGBA, intensity float64) color.RGBA {
+	// Ensure intensity is clamped between 0 and 1
+	if intensity < 0 {
+		intensity = 0
+	} else if intensity > 1 {
+		intensity = 1
+	}
+
+	// Scale the color components by the intensity
+	r := uint8(float64(baseColor.R) * intensity)
+	g := uint8(float64(baseColor.G) * intensity)
+	b := uint8(float64(baseColor.B) * intensity)
+	return color.RGBA{r, g, b, baseColor.A}
+}
+
+func DrawTriangle3D(
+	v1, v2, v3 Point3D, // Three vertices of the triangle in 3D space
+	camera Camera,
+	img *image.RGBA,
+	clr color.RGBA,
+	depthBuffer *DepthBuffer,
+) {
+	// Calculate the normal of the triangle
+	normal := CalculateNormal(v1, v2, v3)
+	avgV := v1.Add(v2).Add(v3).Divide(Point3D{3, 3, 3})
+
+	// RotateVector(Point3D{0, 0, 1}, camera.Rotation)
+	// plane not in direction of camera
+	if DotProduct(normal, Normalize(camera.Position.Subtract(avgV))) < 0 {
 		return
 	}
 
-	// Adjust coordinates to fit within the image bounds
-	p2Start.X = p2Start.X*imageWidth/2 + imageWidth/2
-	p2Start.Y = -p2Start.Y*imageHeight/2 + imageHeight/2
-	p2End.X = p2End.X*imageWidth/2 + imageWidth/2
-	p2End.Y = -p2End.Y*imageHeight/2 + imageHeight/2
+	imageSize := Point2D{float64(img.Bounds().Dx()), float64(img.Bounds().Dy())}
+	// Project the 3D vertices to 2D screen coordinates
+	p1 := ProjectPoint(v1, camera, imageSize)
+	p2 := ProjectPoint(v2, camera, imageSize)
+	p3 := ProjectPoint(v3, camera, imageSize)
 
-	// Draw the line
-	DrawLine(img, p2Start, p2End, color)
+	// depthPerVertex := Point3D{Distance(v1, camera.Position), Distance(v2, camera.Position), Distance(v3, camera.Position)}
+
+	// fmt.Println(v1, v2, v3, camera.Position, depthPerVertex)
+
+	lightDirection := Normalize(Point3D{-0.3, 0.5, 0.8})
+
+	// Calculate the shading intensity based on alignment with the light direction
+	// Dot product between normal and light direction
+	intensity := DotProduct(normal, lightDirection)
+	// fmt.Println(normal, lightDirection, intensity)
+	intensity = 0.7 + max(0, min(intensity, 1))*0.3
+
+	// Shade the color based on the lighting intensity
+	shadedColor := ShadeColor(clr, intensity)
+
+	// xx := Point3D{255, 255, 255}.Multiply(normal)
+	// shadedColor = color.RGBA{uint8(xx.X), uint8(xx.Y), uint8(xx.Z), uint8(255)}
+
+	// Draw the triangle on the 2D screen using the projected points
+	if p1 != nil && p2 != nil && p3 != nil {
+		ip1 := ImgPoint{p1.X, p1.Y, Distance(v1, camera.Position), 0, 0}
+		ip2 := ImgPoint{p2.X, p2.Y, Distance(v2, camera.Position), 0, 0}
+		ip3 := ImgPoint{p3.X, p3.Y, Distance(v3, camera.Position), 0, 0}
+		DrawTriangle2D(img, ip1, ip2, ip3, shadedColor, depthBuffer)
+	}
+}
+
+// interpolateX calculates the X coordinate for a given Y using linear interpolation.
+func interpolateX(p1, p2 ImgPoint, y int) int {
+	if p1.Y == p2.Y || p1.X == p2.X { // Avoid division by zero if points are horizontal
+		return p1.X
+	}
+	return int(p1.X + (y-p1.Y)*(p2.X-p1.X)/(p2.Y-p1.Y))
+}
+
+func interpolateZ(p1, p2 ImgPoint, y int) float64 {
+	t := float64(y-p1.Y) / float64(p2.Y-p1.Y)
+	return p1.Z + t*(p2.Z-p1.Z)
+}
+
+func interpolate(x0, x1, y0, y1, y float64) float64 {
+	if y1 == y0 {
+		return x0
+	}
+	t := (y - y0) / (y1 - y0)
+	return x0 + t*(x1-x0)
+}
+
+func interpolateImgPoint(p1, p2 ImgPoint, y int) ImgPoint {
+	f1 := float64(p1.Y)
+	f2 := float64(p2.Y)
+	fy := float64(y)
+	p := ImgPoint{
+		X: int(interpolate(float64(p1.X), float64(p2.X), f1, f2, fy)),
+		Z: interpolate(float64(p1.Z), float64(p2.Z), f1, f2, fy),
+		U: int(interpolate(float64(p1.U), float64(p2.U), f1, f2, fy)),
+		V: int(interpolate(float64(p1.V), float64(p2.V), f1, f2, fy)),
+	}
+	return p
 }
 
 type Cuboid struct {
@@ -114,6 +299,44 @@ func (c Cuboid) Move(offset Point3D) Cuboid {
 		c.vertices[i] = c.vertices[i].Add(offset)
 	}
 	return c
+}
+
+type DepthBuffer []float64
+
+func DrawFilledCuboid(
+	cuboid Cuboid,
+	camera Camera,
+	img *image.RGBA,
+	depthBuffer *DepthBuffer,
+) {
+	// Define the faces of the cube with four vertices each
+	faces := [][4]int{
+		{0, 3, 2, 1}, // Front face
+		{4, 5, 6, 7}, // Back face
+		{0, 1, 5, 4}, // Top face
+		{2, 3, 7, 6}, // Bottom face
+		{7, 3, 0, 4}, // Left face
+		{1, 2, 6, 5}, // Right face
+	}
+
+	// Draw each face of the cube using two triangles
+	for _, face := range faces {
+		// Split each face into two triangles and draw
+		DrawTriangle3D(
+			cuboid.vertices[face[0]],
+			cuboid.vertices[face[1]],
+			cuboid.vertices[face[2]],
+			camera,
+			img, cuboid.Color, depthBuffer,
+		)
+		DrawTriangle3D(
+			cuboid.vertices[face[0]],
+			cuboid.vertices[face[2]],
+			cuboid.vertices[face[3]],
+			camera,
+			img, cuboid.Color, depthBuffer,
+		)
+	}
 }
 
 func DrawCuboid(
@@ -149,7 +372,7 @@ type BlockDistance struct {
 type ByDistance []BlockDistance
 
 func (a ByDistance) Len() int           { return len(a) }
-func (a ByDistance) Less(i, j int) bool { return a[i].Distance < a[j].Distance }
+func (a ByDistance) Less(i, j int) bool { return a[i].Distance > a[j].Distance }
 func (a ByDistance) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 func GetSortedBlockPositions(origin Point3D) []BlockDistance {
@@ -165,7 +388,7 @@ func GetSortedBlockPositions(origin Point3D) []BlockDistance {
 		}
 	}
 	// Sort the blocks by distance from the camera
-	sort.Sort(ByDistance(blocks))
+	// sort.Sort(ByDistance(blocks))
 
 	// Print sorted blocks
 	// for _, bd := range blocks {
@@ -178,10 +401,7 @@ func Int26_6ToInt(value fixed.Int26_6) int {
 	return int(value >> 6)
 }
 
-func DrawScene(scene *Scene) {
-	imageSize := 512
-	img := image.NewRGBA(image.Rect(0, 0, imageSize, imageSize))
-
+func DrawObjects(scene *Scene, img *image.RGBA, depthBuffer *DepthBuffer) {
 	// Calculate aspect ratio based on the image dimensions
 
 	blockSize := 1
@@ -190,28 +410,28 @@ func DrawScene(scene *Scene) {
 	// fHalfGridSize := float64(gridSize) / 2.0
 
 	// Constants for alpha scaling
-	const maxAlpha = 1.0
-	const minAlpha = 0.0
-	const maxDistance = 16.0 // Distance at which alpha should be fully transparent
-	const minDistance = 8.0  // Distance at which alpha is fully opaque
-
+	// const maxAlpha = 1.0
+	// const minAlpha = 0.0
+	// const maxDistance = 16.0 // Distance at which alpha should be fully transparent
+	// const minDistance = 8.0  // Distance at which alpha is fully opaque
+	// fmt.Println("Drawing", scene.Iteration)
 	for _, bd := range GetSortedBlockPositions(scene.Camera.Position) {
 		p := Vec3{int(bd.Position.X), int(bd.Position.Y), int(bd.Position.Z)}
 		block := scene.World.GetBlock(p)
 		rb, isRenderable := block.(WireRenderBlock)
 		localOffset := bd.Position
-		cameraHorPos := scene.Camera.Position
-		cameraHorPos.Y = localOffset.Y
-		distance := Distance(localOffset, cameraHorPos)
-		var alphaScaling float64
+		// cameraHorPos := scene.Camera.Position
+		// cameraHorPos.Y = localOffset.Y
+		// distance := Distance(localOffset, cameraHorPos)
+		var alphaScaling float64 = 1.0
 
-		if distance >= maxDistance {
-			alphaScaling = minAlpha
-		} else if distance <= minDistance {
-			alphaScaling = maxAlpha
-		} else {
-			alphaScaling = maxAlpha * (1 - (distance / maxDistance))
-		}
+		// if distance >= maxDistance {
+		// 	alphaScaling = minAlpha
+		// } else if distance <= minDistance {
+		// 	alphaScaling = maxAlpha
+		// } else {
+		// 	alphaScaling = maxAlpha * (1 - (distance / maxDistance))
+		// }
 
 		if isRenderable {
 			for _, c := range rb.ToCuboids() {
@@ -220,7 +440,8 @@ func DrawScene(scene *Scene) {
 
 				mc.Color.A = uint8(float64(mc.Color.A) * alphaScaling)
 				// fmt.Println(mc, globalOffset, localOffset)
-				DrawCuboid(mc, scene.Camera, img)
+				DrawFilledCuboid(mc, scene.Camera, img, depthBuffer)
+				// fmt.Println(mc)
 			}
 		} else if p.Y == 0 {
 			minP := Point3D{
@@ -238,18 +459,61 @@ func DrawScene(scene *Scene) {
 			// DrawCuboid(c, scene.Camera, img)
 		}
 	}
+}
+
+func DrawScene(scene *Scene) {
+	imageSize := 512
+	img := image.NewRGBA(image.Rect(0, 0, imageSize, imageSize))
+
+	depthBuffer := make(DepthBuffer, imageSize*imageSize)
+	for i := range depthBuffer {
+		depthBuffer[i] = 1e9 // A large value representing 'infinity'
+	}
+
+	for x := 0; x < imageSize; x++ {
+		for y := 0; y < imageSize; y++ {
+			img.Set(x, y, color.RGBA{122, 168, 253, 255})
+		}
+	}
+
+	// k := 10.0
+	// front
+	// DrawTriangle3D(Point3D{0, 0, 0}, Point3D{k, 0, 0}, Point3D{k, k, 0}, scene.Camera, img, Red.ToRGBA(), &depthBuffer)
+
+	// DrawTriangle3D(Point3D{0, 0, 0}, Point3D{k, k, 0}, Point3D{0, k, 0}, scene.Camera, img, Orange.ToRGBA(), &depthBuffer)
+
+	// // left
+	// DrawTriangle3D(Point3D{0, 0, 0}, Point3D{0, 0, k}, Point3D{0, k, k}, scene.Camera, img, Yellow.ToRGBA(), &depthBuffer)
+	// DrawTriangle3D(Point3D{0, 0, 0}, Point3D{0, k, k}, Point3D{0, k, 0}, scene.Camera, img, Green.ToRGBA(), &depthBuffer)
+
+	// // back
+	// DrawTriangle3D(Point3D{0, 0, k}, Point3D{k, k, k}, Point3D{k, 0, k}, scene.Camera, img, Lime.ToRGBA(), &depthBuffer)
+
+	// DrawTriangle3D(Point3D{0, 0, k}, Point3D{0, k, k}, Point3D{k, k, k}, scene.Camera, img, LightBlue.ToRGBA(), &depthBuffer)
+
+	// // right
+	// DrawTriangle3D(Point3D{k, 0, 0}, Point3D{k, 0, k}, Point3D{k, k, k}, scene.Camera, img, Cyan.ToRGBA(), &depthBuffer)
+	// DrawTriangle3D(Point3D{k, 0, 0}, Point3D{k, k, k}, Point3D{k, k, 0}, scene.Camera, img, Blue.ToRGBA(), &depthBuffer)
+
+	DrawObjects(scene, img, &depthBuffer)
 
 	fontSize := Int26_6ToInt(scene.FontFace.Metrics().Height)
 	DrawText(img, 4, fontSize,
-		fmt.Sprintf("I: %d, U/I %d, sU/I %d, sI/I %d, S: %s",
+		fmt.Sprintf("I: %d, U/I %d, sU/I %d, sI/I %d",
 			scene.Iteration,
 			scene.NumBlockUpdatesInStep,
 			scene.NumBlockSubUpdatesInStep,
 			scene.NumBlockSubUpdateIterationsInStep,
+		), Cyan.ToRGBA(), scene.FontFace)
+
+	DrawText(img, 4, fontSize*2,
+		fmt.Sprintf("F/S: %d, I/S %d, S: %s",
+			scene.RecordedFramesPerSecond,
+			scene.RecordedStepsPerSecond,
 			scene.GameState.String(),
 		), Cyan.ToRGBA(), scene.FontFace)
 
-	DrawText(img, 4, fontSize*2, fmt.Sprintf("%.1f, %.1f, %.1f", scene.Camera.Position.X, scene.Camera.Position.Y, scene.Camera.Position.Z), Cyan.ToRGBA(), scene.FontFace)
+	DrawText(img, 4, fontSize*3, fmt.Sprintf("XYZ: %.1f, %.1f, %.1f", scene.Camera.Position.X, scene.Camera.Position.Y, scene.Camera.Position.Z), Cyan.ToRGBA(), scene.FontFace)
 
 	// Create the output file
 	file, err := os.Create("scene.png")
