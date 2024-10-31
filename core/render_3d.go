@@ -8,6 +8,8 @@ import (
 	"math"
 	"os"
 	"sort"
+
+	"golang.org/x/image/math/fixed"
 )
 
 func DrawBox2D(x, y, size int, col color.RGBA, img *image.RGBA) {
@@ -172,6 +174,10 @@ func GetSortedBlockPositions(origin Point3D) []BlockDistance {
 	return blocks
 }
 
+func Int26_6ToInt(value fixed.Int26_6) int {
+	return int(value >> 6)
+}
+
 func DrawScene(scene *Scene) {
 	imageSize := 512
 	img := image.NewRGBA(image.Rect(0, 0, imageSize, imageSize))
@@ -229,11 +235,14 @@ func DrawScene(scene *Scene) {
 			}
 			c := MakeAxisAlignedCuboid(minP, maxP, color.RGBA{255, 255, 255, 100})
 			c.Color.A = uint8(float64(c.Color.A) * alphaScaling)
-			DrawCuboid(c, scene.Camera, img)
+			// DrawCuboid(c, scene.Camera, img)
 		}
 	}
 
-	DrawText(img, 4, 28, fmt.Sprintf("F/S: %d, U/I %d, S: %s", scene.Iteration, scene.NumBlockUpdatesInStep, scene.GameState.String()), Cyan.ToRGBA(), scene.FontFace)
+	fontSize := Int26_6ToInt(scene.FontFace.Metrics().Height)
+	DrawText(img, 4, fontSize, fmt.Sprintf("I: %d, U/I %d, S: %s", scene.Iteration, scene.NumBlockUpdatesInStep, scene.GameState.String()), Cyan.ToRGBA(), scene.FontFace)
+
+	DrawText(img, 4, fontSize*2, fmt.Sprintf("%.1f, %.1f, %.1f", scene.Camera.Position.X, scene.Camera.Position.Y, scene.Camera.Position.Z), Cyan.ToRGBA(), scene.FontFace)
 
 	// Create the output file
 	file, err := os.Create("scene.png")

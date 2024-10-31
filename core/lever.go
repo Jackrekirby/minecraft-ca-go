@@ -3,8 +3,8 @@ package core
 import "image/color"
 
 type Lever struct {
-	direction Direction
-	isOn      bool
+	Direction Direction
+	IsOn      bool
 }
 
 func (b Lever) Type() string {
@@ -12,11 +12,11 @@ func (b Lever) Type() string {
 }
 
 func (b Lever) OutputsPowerInDirection(d Direction) bool {
-	return b.isOn
+	return b.IsOn
 }
 
 func (b Lever) OutputsStrongPowerInDirection(d Direction) bool {
-	return b.isOn && b.direction == d
+	return b.IsOn && b.Direction == d.GetOppositeDirection()
 }
 
 func (b Lever) ToCuboids() []Cuboid {
@@ -27,7 +27,7 @@ func (b Lever) ToCuboids() []Cuboid {
 		color.RGBA{160, 127, 81, 255},
 	)
 	var rx float64
-	if b.isOn {
+	if b.IsOn {
 		rx = 45
 	} else {
 		rx = -45
@@ -37,12 +37,46 @@ func (b Lever) ToCuboids() []Cuboid {
 		translate := Point3D{7, 3, 7}.Divide(s)
 		cuboid.vertices[i] = cuboid.vertices[i].Subtract(translate).RotateX(DegToRad(rx)).Add(translate)
 	}
-	return []Cuboid{
-		MakeAxisAlignedCuboid(
-			Point3D{5, 0, 4}.Divide(s),
-			Point3D{11, 3, 12}.Divide(s),
-			color.RGBA{100, 100, 100, 255},
-		),
+
+	base := MakeAxisAlignedCuboid(
+		Point3D{5, 0, 4}.Divide(s),
+		Point3D{11, 3, 12}.Divide(s),
+		color.RGBA{100, 100, 100, 255},
+	)
+
+	cuboids := []Cuboid{
+		base,
 		stick,
 	}
+
+	var rot Point3D
+	switch b.Direction {
+	case Left:
+		rot = Point3D{90, 0, 90}
+	case Right:
+		rot = Point3D{90, 0, -90}
+	case Up:
+		rot = Point3D{0, 0, 0}
+	case Down:
+		rot = Point3D{0, 0, 180}
+	case Front:
+		rot = Point3D{90, 0, 0}
+	case Back:
+		rot = Point3D{90, 180, 0}
+	}
+
+	for j := 0; j < 2; j++ {
+		for i := 0; i < 8; i++ {
+			cuboid := &cuboids[j]
+			translate := Point3D{8, 8, 8}.Divide(s)
+			cuboid.vertices[i] = cuboid.vertices[i].
+				Subtract(translate).
+				RotateZ(DegToRad(rot.Z)).
+				RotateX(DegToRad(rot.X)).
+				RotateY(DegToRad(rot.Y)).
+				Add(translate)
+		}
+	}
+
+	return cuboids
 }

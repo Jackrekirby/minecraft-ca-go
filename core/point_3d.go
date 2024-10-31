@@ -4,7 +4,9 @@ import "math"
 
 // Point3D represents a point in 3D space.
 type Point3D struct {
-	X, Y, Z float64
+	X float64 `json:"X"`
+	Y float64 `json:"Y"`
+	Z float64 `json:"Z"`
 }
 
 func Point3DFromScalar(s float64) Point3D {

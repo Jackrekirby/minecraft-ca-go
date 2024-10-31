@@ -71,8 +71,8 @@ func (b RedstoneLamp) ToCuboids() []Cuboid {
 	if b.InputPowerType == Strong {
 		c = color.RGBA{219, 171, 115, 255}
 	} else if b.InputPowerType == Weak {
-		// c = color.RGBA{0, 255, 0, 255}
-		c = color.RGBA{219, 171, 115, 255}
+		c = color.RGBA{0, 255, 0, 255}
+		// c = color.RGBA{219, 171, 115, 255}
 	} else {
 		c = color.RGBA{95, 59, 34, 255}
 	}

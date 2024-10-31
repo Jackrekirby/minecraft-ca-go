@@ -50,18 +50,36 @@ func runGameLoop(scene *Scene) {
 	}
 }
 
+func runGameSave(scene *Scene) {
+	period := ratePerSecondToDuration(5)
+	scene.Iteration = 0
+	for scene.GameState != Quit {
+		gameSave := GameSave{CameraPosition: scene.Camera.Position, CameraRotation: scene.Camera.Rotation}
+		WriteGameSame(gameSave)
+		time.Sleep(period)
+	}
+}
+
 func RunEngine() {
 	fmt.Println("Minecraft 3D Celluar Automata in Go")
+
+	gameSave, err := LoadGameSave()
+	if err != nil {
+		gameSave = GameSave{
+			CameraPosition: Point3D{X: 3.5, Y: 5.5, Z: -4},
+			CameraRotation: Point3D{X: DegToRad(0), Y: DegToRad(0), Z: DegToRad(0)},
+		}
+	}
 	scene := Scene{}
 
 	scene.GameState = Playing
-	scene.FramesPerSecond = 4
-	scene.StepsPerSecond = 4
+	scene.FramesPerSecond = 2
+	scene.StepsPerSecond = 2
 
 	scene.World = World{}
 	scene.Camera = Camera{
-		Position:    Point3D{X: 3.5, Y: 5.5, Z: -4},
-		Rotation:    Point3D{X: DegToRad(0), Y: DegToRad(0), Z: DegToRad(0)},
+		Position:    gameSave.CameraPosition,
+		Rotation:    gameSave.CameraRotation,
 		FOV:         90.0,
 		AspectRatio: 1.0,
 		Near:        0.1,
@@ -69,7 +87,7 @@ func RunEngine() {
 	}
 
 	// load assets
-	fontFace, err := LoadTrueTypeFont("assets/CascadiaMono.ttf", 24)
+	fontFace, err := LoadTrueTypeFont("assets/CascadiaMono.ttf", 18)
 	if err != nil {
 		panic(fmt.Sprintf("failed to load font: %v", err))
 	}
@@ -79,5 +97,6 @@ func RunEngine() {
 
 	go KeyboardEvents(&scene)
 	go runRenderLoop(&scene)
+	go runGameSave(&scene)
 	runGameLoop(&scene)
 }
