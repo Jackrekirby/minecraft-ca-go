@@ -7,6 +7,11 @@ import (
 )
 
 func createWorld(world *World) {
+	world.SetBlock(
+		Vec3{X: 0, Y: 1, Z: 0},
+		Lever{Up, true},
+	)
+
 	cp := Vec3{X: 8, Y: 2, Z: 4}
 	world.SetBlock(cp, RedstoneBlock{})
 	for _, d := range [4]Direction{Left, Right, Front, Back} {
@@ -74,12 +79,24 @@ func ProcessUserInputs(iteration int, world *World) bool {
 	if iteration == 0 {
 		createWorld(world)
 		hasAnyBlockUpdated = true
-	} else if iteration%32 == 4 {
+	}
+	if iteration%8 == 0 {
+		p := Vec3{X: 0, Y: 1, Z: 0}
+		b := world.GetBlock(p)
+		lever, isLever := b.(Lever)
+		if isLever {
+			lever.isOn = !lever.isOn
+			world.SetBlock(p, lever)
+			hasAnyBlockUpdated = true
+		}
+	}
+	if iteration%32 == 4 {
 		p := Vec3{X: 1, Y: 2, Z: 0}
 		world.SetBlock(p, RedstoneBlock{})
 		world.SetBlock(p.Add(Vec3{X: 2, Y: 0, Z: 0}), RedstoneBlock{})
 		hasAnyBlockUpdated = true
-	} else if iteration%32 == 20 {
+	}
+	if iteration%32 == 20 {
 		p := Vec3{X: 1, Y: 2, Z: 0}
 		world.SetBlock(p, Air{})
 		world.SetBlock(p.Add(Vec3{X: 2, Y: 0, Z: 0}), Air{})

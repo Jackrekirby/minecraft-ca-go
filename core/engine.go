@@ -54,9 +54,9 @@ func RunEngine() {
 	fmt.Println("Minecraft 3D Celluar Automata in Go")
 	scene := Scene{}
 
-	scene.GameState = Paused
-	scene.FramesPerSecond = 2
-	scene.StepsPerSecond = 2
+	scene.GameState = Playing
+	scene.FramesPerSecond = 4
+	scene.StepsPerSecond = 4
 
 	scene.World = World{}
 	scene.Camera = Camera{
