@@ -8,6 +8,10 @@ type UpdateableBlock interface {
 	Update(p Vec3, w *World) (Block, bool)
 }
 
+type SubUpdateableBlock interface {
+	SubUpdate(p Vec3, w *World) (Block, bool)
+}
+
 type PowerEmittingBlock interface {
 	OutputsPowerInDirection(d Direction) bool
 }

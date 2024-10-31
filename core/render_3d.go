@@ -240,7 +240,14 @@ func DrawScene(scene *Scene) {
 	}
 
 	fontSize := Int26_6ToInt(scene.FontFace.Metrics().Height)
-	DrawText(img, 4, fontSize, fmt.Sprintf("I: %d, U/I %d, S: %s", scene.Iteration, scene.NumBlockUpdatesInStep, scene.GameState.String()), Cyan.ToRGBA(), scene.FontFace)
+	DrawText(img, 4, fontSize,
+		fmt.Sprintf("I: %d, U/I %d, sU/I %d, sI/I %d, S: %s",
+			scene.Iteration,
+			scene.NumBlockUpdatesInStep,
+			scene.NumBlockSubUpdatesInStep,
+			scene.NumBlockSubUpdateIterationsInStep,
+			scene.GameState.String(),
+		), Cyan.ToRGBA(), scene.FontFace)
 
 	DrawText(img, 4, fontSize*2, fmt.Sprintf("%.1f, %.1f, %.1f", scene.Camera.Position.X, scene.Camera.Position.Y, scene.Camera.Position.Z), Cyan.ToRGBA(), scene.FontFace)
 

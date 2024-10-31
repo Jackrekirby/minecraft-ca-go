@@ -42,6 +42,15 @@ func (w *World) UpdateBlock(p Vec3) (Block, bool) {
 	return b, false
 }
 
+func (w *World) SubUpdateBlock(p Vec3) (Block, bool) {
+	b := w.GetBlock(p)
+	ub, canUpdate := b.(SubUpdateableBlock)
+	if canUpdate {
+		return ub.SubUpdate(p, w)
+	}
+	return b, false
+}
+
 func (w *World) UpdateWorld() int {
 	nextWorld := World{}
 	numUpdates := 0
@@ -50,6 +59,25 @@ func (w *World) UpdateWorld() int {
 			for z := 0; z < WorldDepth; z++ {
 				p := Vec3{X: x, Y: y, Z: z}
 				block, hasUpdated := w.UpdateBlock(p)
+				if hasUpdated {
+					numUpdates += 1
+				}
+				nextWorld.SetBlock(p, block)
+			}
+		}
+	}
+	*w = nextWorld
+	return numUpdates
+}
+
+func (w *World) SubUpdateWorld() int {
+	nextWorld := World{}
+	numUpdates := 0
+	for x := 0; x < WorldWidth; x++ {
+		for y := 0; y < WorldHeight; y++ {
+			for z := 0; z < WorldDepth; z++ {
+				p := Vec3{X: x, Y: y, Z: z}
+				block, hasUpdated := w.SubUpdateBlock(p)
 				if hasUpdated {
 					numUpdates += 1
 				}

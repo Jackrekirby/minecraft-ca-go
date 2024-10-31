@@ -21,7 +21,7 @@ func (b WoolBlock) OutputsWeakPowerInDirection(d Direction) bool {
 	return b.InputPowerType == Weak
 }
 
-func (b WoolBlock) Update(p Vec3, w *World) (Block, bool) {
+func (b WoolBlock) SubUpdate(p Vec3, w *World) (Block, bool) {
 	var newInputPowerType PowerType = UpdateInputPowerType(p, w)
 	hasUpdated := newInputPowerType != b.InputPowerType
 	b.InputPowerType = newInputPowerType

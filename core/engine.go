@@ -8,13 +8,16 @@ import (
 )
 
 type Scene struct {
-	Iteration             int
-	GameState             GameState
-	Camera                Camera
-	World                 World
-	FramesPerSecond       int
-	StepsPerSecond        int
-	NumBlockUpdatesInStep int
+	Iteration                         int
+	GameState                         GameState
+	Camera                            Camera
+	World                             World
+	FramesPerSecond                   int
+	StepsPerSecond                    int
+	SubStepsPerSecond                 int
+	NumBlockUpdatesInStep             int
+	NumBlockSubUpdateIterationsInStep int
+	NumBlockSubUpdatesInStep          int
 
 	FontFace font.Face // should be a store of multiple fonts or internal handler for loaded assets
 }
@@ -33,13 +36,34 @@ func runRenderLoop(scene *Scene) {
 
 func runGameLoop(scene *Scene) {
 	period := ratePerSecondToDuration(scene.StepsPerSecond)
+	subperiod := ratePerSecondToDuration(scene.SubStepsPerSecond)
 	scene.Iteration = 0
+	maxSubUpdateIterations := 50
 	for scene.GameState != Quit {
 		if scene.GameState == Playing || scene.GameState == Pausing {
-			numUpdates := scene.World.UpdateWorld()
+			numUpdates := 0
+			// Process User Inputs
 			if ProcessUserInputs(scene.Iteration, &scene.World) {
 				numUpdates += 1
 			}
+			// Process Sub Updates
+			totalSubUpdates := 0
+			i := 0
+			for i < maxSubUpdateIterations {
+				numSubUpdates := scene.World.SubUpdateWorld()
+				totalSubUpdates += numSubUpdates
+				if numSubUpdates == 0 {
+					break
+				}
+				time.Sleep(subperiod)
+				i++
+			}
+			scene.NumBlockSubUpdateIterationsInStep = i
+			scene.NumBlockSubUpdatesInStep = totalSubUpdates
+
+			// Process Updates
+			numUpdates += scene.World.UpdateWorld()
+
 			scene.NumBlockUpdatesInStep = numUpdates
 			scene.Iteration = scene.Iteration + 1
 			if scene.GameState == Pausing {
@@ -75,6 +99,7 @@ func RunEngine() {
 	scene.GameState = Playing
 	scene.FramesPerSecond = 2
 	scene.StepsPerSecond = 2
+	scene.SubStepsPerSecond = 0
 
 	scene.World = World{}
 	scene.Camera = Camera{
