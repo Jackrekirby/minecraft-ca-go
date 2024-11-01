@@ -116,8 +116,8 @@ func ProcessUserInputs(iteration int, world *World) bool {
 	// currently just handles programatic changes to the world to simulate user interaction
 	var hasAnyBlockUpdated bool = false
 	if iteration == 0 {
-		createWorld(world)
-		// createSimpleWorld(world)
+		//createWorld(world)
+		createSimpleWorld(world)
 		hasAnyBlockUpdated = true
 	}
 	if iteration%32 == 4 || iteration%32 == 20 {

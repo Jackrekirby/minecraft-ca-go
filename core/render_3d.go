@@ -89,7 +89,8 @@ func DrawLine3D(
 }
 
 func DrawTriangle2D(img *image.RGBA, p1, p2, p3 ImgPoint, col color.RGBA,
-	depthBuffer *DepthBuffer) {
+	depthBuffer *DepthBuffer, texture *image.RGBA,
+) {
 	imageSize := Int_2D{img.Bounds().Dx(), img.Bounds().Dy()}
 	// Sort vertices by Y-coordinate (p1 is the topmost, p3 is the bottommost)
 	if p2.Y < p1.Y {
@@ -101,6 +102,8 @@ func DrawTriangle2D(img *image.RGBA, p1, p2, p3 ImgPoint, col color.RGBA,
 	if p3.Y < p2.Y {
 		p2, p3 = p3, p2
 	}
+
+	fmt.Println(p1, p2, p3)
 
 	// col = color.RGBA{uint8(p1.X * 10 % 255), uint8(p2.X * 10 % 255), uint8(p3.X * 10 % 255), 255}
 	// Draw the triangle outline
@@ -115,33 +118,36 @@ func DrawTriangle2D(img *image.RGBA, p1, p2, p3 ImgPoint, col color.RGBA,
 	yEnd := min(int(p3.Y), imageSize.Y-1)
 
 	for y := yStart; y <= yEnd; y++ {
-		var xStart, xEnd int
-		var zStart, zEnd float64
-
+		// var xStart, xEnd int
+		// var zStart, zEnd float64
+		var ip0, ip1 ImgPoint
 		// Calculate x and z coordinates for each edge intersection at this Y level
 		if y < int(p2.Y) {
-			// ip0 := interpolateImgPoint(p1, p3, y)
-			// ip1 := interpolateImgPoint(p1, p2, y)
-			xStart = interpolateX(p1, p3, y)
-			xEnd = interpolateX(p1, p2, y)
-			zStart = interpolateZ(p1, p3, y)
-			zEnd = interpolateZ(p1, p2, y)
+			ip0 = interpolateImgPoint(p1, p3, y)
+			ip1 = interpolateImgPoint(p1, p2, y)
+			// xStart = interpolateX(p1, p3, y)
+			// xEnd = interpolateX(p1, p2, y)
+			// zStart = interpolateZ(p1, p3, y)
+			// zEnd = interpolateZ(p1, p2, y)
 		} else {
-			xStart = interpolateX(p1, p3, y)
-			xEnd = interpolateX(p2, p3, y)
-			zStart = interpolateZ(p1, p3, y)
-			zEnd = interpolateZ(p2, p3, y)
+			ip0 = interpolateImgPoint(p1, p3, y)
+			ip1 = interpolateImgPoint(p2, p3, y)
+			// xStart = interpolateX(p1, p3, y)
+			// xEnd = interpolateX(p2, p3, y)
+			// zStart = interpolateZ(p1, p3, y)
+			// zEnd = interpolateZ(p2, p3, y)
 		}
 
-		if xStart > xEnd {
-			xStart, xEnd = xEnd, xStart
-			zStart, zEnd = zEnd, zStart
+		if ip0.X > ip1.X {
+			ip0, ip1 = ip1, ip0
+			// xStart, xEnd = xEnd, xStart
+			// zStart, zEnd = zEnd, zStart
 		}
-		xStart = max(xStart, 0)
-		xEnd = min(xEnd, imageSize.X-1)
+		ip0.X = max(ip0.X, 0)
+		ip1.X = min(ip1.X, imageSize.X-1)
 
 		// Draw the horizontal line, interpolating depth along the line
-		for x := xStart; x <= xEnd; x++ {
+		for x := ip0.X; x <= ip1.X; x++ {
 			// Only draw if this pixel is closer than the current depth buffer value
 			dbi := y*int(imageSize.X) + x
 			if dbi > len(*depthBuffer) {
@@ -149,12 +155,20 @@ func DrawTriangle2D(img *image.RGBA, p1, p2, p3 ImgPoint, col color.RGBA,
 				panic("Index out of range")
 			}
 
-			t := float64(x-xStart) / float64(xEnd-xStart)
-			z := zStart + t*(zEnd-zStart)
+			t := float64(x-ip0.X) / float64(ip1.X-ip0.X)
+			z := ip0.Z + t*(ip1.Z-ip0.Z)
+			u := float64(ip0.U) + t*float64(ip1.U-ip0.U)
+			v := float64(ip0.V) + t*float64(ip1.V-ip0.V)
 
 			if z < (*depthBuffer)[dbi] {
 				(*depthBuffer)[dbi] = z // Update the depth buffer
-				img.Set(x, y, col)
+				// Sample the texture at the interpolated UV coordinates
+				tx := int(u*float64(texture.Bounds().Dx())) % img.Bounds().Dx()
+				ty := int(v*float64(texture.Bounds().Dy())) % img.Bounds().Dy()
+				// fmt.Println(u, v, tx, ty)
+				texColor := texture.At(tx, ty).(color.RGBA)
+				// texColor := color.RGBA{uint8(u * 255.0), uint8(v * 255.0), 255, 255}
+				img.Set(x, y, texColor)
 			}
 		}
 	}
@@ -191,16 +205,23 @@ func ShadeColor(baseColor color.RGBA, intensity float64) color.RGBA {
 	return color.RGBA{r, g, b, baseColor.A}
 }
 
+type Vertex struct {
+	Position Point3D
+	U        int
+	V        int
+}
+
 func DrawTriangle3D(
-	v1, v2, v3 Point3D, // Three vertices of the triangle in 3D space
+	v1, v2, v3 Vertex, // Three vertices of the triangle in 3D space
 	camera Camera,
 	img *image.RGBA,
 	clr color.RGBA,
 	depthBuffer *DepthBuffer,
+	texture *image.RGBA,
 ) {
 	// Calculate the normal of the triangle
-	normal := CalculateNormal(v1, v2, v3)
-	avgV := v1.Add(v2).Add(v3).Divide(Point3D{3, 3, 3})
+	normal := CalculateNormal(v1.Position, v2.Position, v3.Position)
+	avgV := v1.Position.Add(v2.Position).Add(v3.Position).Divide(Point3D{3, 3, 3})
 
 	// RotateVector(Point3D{0, 0, 1}, camera.Rotation)
 	// plane not in direction of camera
@@ -210,9 +231,9 @@ func DrawTriangle3D(
 
 	imageSize := Point2D{float64(img.Bounds().Dx()), float64(img.Bounds().Dy())}
 	// Project the 3D vertices to 2D screen coordinates
-	p1 := ProjectPoint(v1, camera, imageSize)
-	p2 := ProjectPoint(v2, camera, imageSize)
-	p3 := ProjectPoint(v3, camera, imageSize)
+	p1 := ProjectPoint(v1.Position, camera, imageSize)
+	p2 := ProjectPoint(v2.Position, camera, imageSize)
+	p3 := ProjectPoint(v3.Position, camera, imageSize)
 
 	// depthPerVertex := Point3D{Distance(v1, camera.Position), Distance(v2, camera.Position), Distance(v3, camera.Position)}
 
@@ -234,10 +255,10 @@ func DrawTriangle3D(
 
 	// Draw the triangle on the 2D screen using the projected points
 	if p1 != nil && p2 != nil && p3 != nil {
-		ip1 := ImgPoint{p1.X, p1.Y, Distance(v1, camera.Position), 0, 0}
-		ip2 := ImgPoint{p2.X, p2.Y, Distance(v2, camera.Position), 0, 0}
-		ip3 := ImgPoint{p3.X, p3.Y, Distance(v3, camera.Position), 0, 0}
-		DrawTriangle2D(img, ip1, ip2, ip3, shadedColor, depthBuffer)
+		ip1 := ImgPoint{p1.X, p1.Y, Distance(v1.Position, camera.Position), v1.U, v1.V}
+		ip2 := ImgPoint{p2.X, p2.Y, Distance(v2.Position, camera.Position), v2.U, v2.V}
+		ip3 := ImgPoint{p3.X, p3.Y, Distance(v3.Position, camera.Position), v3.U, v3.V}
+		DrawTriangle2D(img, ip1, ip2, ip3, shadedColor, depthBuffer, texture)
 	}
 }
 
@@ -308,35 +329,38 @@ func DrawFilledCuboid(
 	camera Camera,
 	img *image.RGBA,
 	depthBuffer *DepthBuffer,
+	texture *image.RGBA,
 ) {
 	// Define the faces of the cube with four vertices each
-	faces := [][4]int{
-		{0, 3, 2, 1}, // Front face
-		{4, 5, 6, 7}, // Back face
-		{0, 1, 5, 4}, // Top face
-		{2, 3, 7, 6}, // Bottom face
-		{7, 3, 0, 4}, // Left face
-		{1, 2, 6, 5}, // Right face
-	}
+	// faces := [][4]int{
+	// 	{0, 3, 2, 1}, // Front face
+	// 	{4, 5, 6, 7}, // Back face
+	// 	{0, 1, 5, 4}, // Top face
+	// 	{2, 3, 7, 6}, // Bottom face
+	// 	{7, 3, 0, 4}, // Left face
+	// 	{1, 2, 6, 5}, // Right face
+	// }
 
-	// Draw each face of the cube using two triangles
-	for _, face := range faces {
-		// Split each face into two triangles and draw
-		DrawTriangle3D(
-			cuboid.vertices[face[0]],
-			cuboid.vertices[face[1]],
-			cuboid.vertices[face[2]],
-			camera,
-			img, cuboid.Color, depthBuffer,
-		)
-		DrawTriangle3D(
-			cuboid.vertices[face[0]],
-			cuboid.vertices[face[2]],
-			cuboid.vertices[face[3]],
-			camera,
-			img, cuboid.Color, depthBuffer,
-		)
-	}
+	// // Draw each face of the cube using two triangles
+	// for _, face := range faces {
+	// 	// Split each face into two triangles and draw
+	// 	DrawTriangle3D(
+	// 		cuboid.vertices[face[0]],
+	// 		cuboid.vertices[face[1]],
+	// 		cuboid.vertices[face[2]],
+	// 		camera,
+	// 		img, cuboid.Color, depthBuffer,
+	// 		texture,
+	// 	)
+	// 	DrawTriangle3D(
+	// 		cuboid.vertices[face[0]],
+	// 		cuboid.vertices[face[2]],
+	// 		cuboid.vertices[face[3]],
+	// 		camera,
+	// 		img, cuboid.Color, depthBuffer,
+	// 		texture,
+	// 	)
+	// }
 }
 
 func DrawCuboid(
@@ -440,7 +464,7 @@ func DrawObjects(scene *Scene, img *image.RGBA, depthBuffer *DepthBuffer) {
 
 				mc.Color.A = uint8(float64(mc.Color.A) * alphaScaling)
 				// fmt.Println(mc, globalOffset, localOffset)
-				DrawFilledCuboid(mc, scene.Camera, img, depthBuffer)
+				DrawFilledCuboid(mc, scene.Camera, img, depthBuffer, &scene.Texture)
 				// fmt.Println(mc)
 			}
 		} else if p.Y == 0 {
@@ -476,9 +500,14 @@ func DrawScene(scene *Scene) {
 		}
 	}
 
-	// k := 10.0
-	// front
-	// DrawTriangle3D(Point3D{0, 0, 0}, Point3D{k, 0, 0}, Point3D{k, k, 0}, scene.Camera, img, Red.ToRGBA(), &depthBuffer)
+	k := 10.0
+	//front
+	DrawTriangle3D(
+		Vertex{Point3D{0, 0, 0}, 0, 0},
+		Vertex{Point3D{k, 0, 0}, 1, 0},
+		Vertex{Point3D{k, k, 0}, 1, 1},
+		scene.Camera, img, Red.ToRGBA(), &depthBuffer, &scene.Texture,
+	)
 
 	// DrawTriangle3D(Point3D{0, 0, 0}, Point3D{k, k, 0}, Point3D{0, k, 0}, scene.Camera, img, Orange.ToRGBA(), &depthBuffer)
 
@@ -495,7 +524,7 @@ func DrawScene(scene *Scene) {
 	// DrawTriangle3D(Point3D{k, 0, 0}, Point3D{k, 0, k}, Point3D{k, k, k}, scene.Camera, img, Cyan.ToRGBA(), &depthBuffer)
 	// DrawTriangle3D(Point3D{k, 0, 0}, Point3D{k, k, k}, Point3D{k, k, 0}, scene.Camera, img, Blue.ToRGBA(), &depthBuffer)
 
-	DrawObjects(scene, img, &depthBuffer)
+	//DrawObjects(scene, img, &depthBuffer)
 
 	fontSize := Int26_6ToInt(scene.FontFace.Metrics().Height)
 	DrawText(img, 4, fontSize,

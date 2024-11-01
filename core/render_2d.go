@@ -67,6 +67,13 @@ func AnimateChequerBoard() {
 	}
 }
 
+func ImageToRGBA(img image.Image) *image.RGBA {
+	bounds := img.Bounds()
+	rgba := image.NewRGBA(bounds)
+	draw.Draw(rgba, bounds, img, bounds.Min, draw.Src)
+	return rgba
+}
+
 func loadImage(filePath string) (image.Image, error) {
 	file, err := os.Open(filePath)
 	if err != nil {

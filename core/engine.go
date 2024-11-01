@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"image"
 	"time"
 
 	"golang.org/x/image/font"
@@ -23,6 +24,7 @@ type Scene struct {
 	RecordedStepsPerSecond            int
 
 	FontFace font.Face // should be a store of multiple fonts or internal handler for loaded assets
+	Texture  image.RGBA
 }
 
 func ratePerSecondToDuration(rate int) time.Duration {
@@ -138,6 +140,12 @@ func RunEngine() {
 		panic(fmt.Sprintf("failed to load font: %v", err))
 	}
 	scene.FontFace = fontFace
+
+	img, err2 := loadImage("assets/test.png")
+	if err2 != nil {
+		panic(fmt.Sprintf("failed to load img: %v", err))
+	}
+	scene.Texture = *ImageToRGBA(img)
 
 	// createWorld(&scene.World)
 
