@@ -141,7 +141,7 @@ func RunEngine() {
 	}
 	scene.FontFace = fontFace
 
-	img, err2 := loadImage("assets/test.png")
+	img, err2 := loadImage("assets/crafting_table_front.png")
 	if err2 != nil {
 		panic(fmt.Sprintf("failed to load img: %v", err))
 	}

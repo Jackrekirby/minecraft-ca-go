@@ -103,9 +103,8 @@ func DrawTriangle2D(img *image.RGBA, p1, p2, p3 ImgPoint, col color.RGBA,
 		p2, p3 = p3, p2
 	}
 
-	fmt.Println(p1, p2, p3)
+	// fmt.Println(p1, p2, p3)
 
-	// col = color.RGBA{uint8(p1.X * 10 % 255), uint8(p2.X * 10 % 255), uint8(p3.X * 10 % 255), 255}
 	// Draw the triangle outline
 	// DrawLine(img, p1, p2, White.ToRGBA())
 	// DrawLine(img, p2, p3, White.ToRGBA())
@@ -118,30 +117,23 @@ func DrawTriangle2D(img *image.RGBA, p1, p2, p3 ImgPoint, col color.RGBA,
 	yEnd := min(int(p3.Y), imageSize.Y-1)
 
 	for y := yStart; y <= yEnd; y++ {
-		// var xStart, xEnd int
-		// var zStart, zEnd float64
 		var ip0, ip1 ImgPoint
 		// Calculate x and z coordinates for each edge intersection at this Y level
 		if y < int(p2.Y) {
 			ip0 = interpolateImgPoint(p1, p3, y)
 			ip1 = interpolateImgPoint(p1, p2, y)
-			// xStart = interpolateX(p1, p3, y)
-			// xEnd = interpolateX(p1, p2, y)
-			// zStart = interpolateZ(p1, p3, y)
-			// zEnd = interpolateZ(p1, p2, y)
+
+			// rp0 = p3
+			// rp1 = p2
 		} else {
 			ip0 = interpolateImgPoint(p1, p3, y)
 			ip1 = interpolateImgPoint(p2, p3, y)
-			// xStart = interpolateX(p1, p3, y)
-			// xEnd = interpolateX(p2, p3, y)
-			// zStart = interpolateZ(p1, p3, y)
-			// zEnd = interpolateZ(p2, p3, y)
+			// rp0 = p1
+			// rp1 = p2
 		}
 
 		if ip0.X > ip1.X {
 			ip0, ip1 = ip1, ip0
-			// xStart, xEnd = xEnd, xStart
-			// zStart, zEnd = zEnd, zStart
 		}
 		ip0.X = max(ip0.X, 0)
 		ip1.X = min(ip1.X, imageSize.X-1)
@@ -157,18 +149,19 @@ func DrawTriangle2D(img *image.RGBA, p1, p2, p3 ImgPoint, col color.RGBA,
 
 			t := float64(x-ip0.X) / float64(ip1.X-ip0.X)
 			z := ip0.Z + t*(ip1.Z-ip0.Z)
-			u := float64(ip0.U) + t*float64(ip1.U-ip0.U)
-			v := float64(ip0.V) + t*float64(ip1.V-ip0.V)
+			// t2 := float64(x-rp0.X) / float64(rp1.X-rp0.X)
+			// u := float64(ip0.U) + t*float64(ip1.U-ip0.U)
+			// v := float64(ip0.V) + t*float64(ip1.V-ip0.V)
 
 			if z < (*depthBuffer)[dbi] {
 				(*depthBuffer)[dbi] = z // Update the depth buffer
 				// Sample the texture at the interpolated UV coordinates
-				tx := int(u*float64(texture.Bounds().Dx())) % img.Bounds().Dx()
-				ty := int(v*float64(texture.Bounds().Dy())) % img.Bounds().Dy()
+				// tx := int(u*float64(texture.Bounds().Dx())) % img.Bounds().Dx()
+				// ty := int(v*float64(texture.Bounds().Dy())) % img.Bounds().Dy()
 				// fmt.Println(u, v, tx, ty)
-				texColor := texture.At(tx, ty).(color.RGBA)
+				// texColor := texture.At(tx, ty).(color.RGBA)
 				// texColor := color.RGBA{uint8(u * 255.0), uint8(v * 255.0), 255, 255}
-				img.Set(x, y, texColor)
+				img.Set(x, y, col)
 			}
 		}
 	}
@@ -207,8 +200,8 @@ func ShadeColor(baseColor color.RGBA, intensity float64) color.RGBA {
 
 type Vertex struct {
 	Position Point3D
-	U        int
-	V        int
+	U        float64
+	V        float64
 }
 
 func DrawTriangle3D(
@@ -258,7 +251,7 @@ func DrawTriangle3D(
 		ip1 := ImgPoint{p1.X, p1.Y, Distance(v1.Position, camera.Position), v1.U, v1.V}
 		ip2 := ImgPoint{p2.X, p2.Y, Distance(v2.Position, camera.Position), v2.U, v2.V}
 		ip3 := ImgPoint{p3.X, p3.Y, Distance(v3.Position, camera.Position), v3.U, v3.V}
-		DrawTriangle2D(img, ip1, ip2, ip3, shadedColor, depthBuffer, texture)
+		DrawTriangle2D2(img, ip1, ip2, ip3, shadedColor, depthBuffer, texture)
 	}
 }
 
@@ -290,8 +283,8 @@ func interpolateImgPoint(p1, p2 ImgPoint, y int) ImgPoint {
 	p := ImgPoint{
 		X: int(interpolate(float64(p1.X), float64(p2.X), f1, f2, fy)),
 		Z: interpolate(float64(p1.Z), float64(p2.Z), f1, f2, fy),
-		U: int(interpolate(float64(p1.U), float64(p2.U), f1, f2, fy)),
-		V: int(interpolate(float64(p1.V), float64(p2.V), f1, f2, fy)),
+		// U: int(interpolate(float64(p1.U), float64(p2.U), f1, f2, fy)),
+		// V: int(interpolate(float64(p1.V), float64(p2.V), f1, f2, fy)),
 	}
 	return p
 }
@@ -332,35 +325,45 @@ func DrawFilledCuboid(
 	texture *image.RGBA,
 ) {
 	// Define the faces of the cube with four vertices each
-	// faces := [][4]int{
-	// 	{0, 3, 2, 1}, // Front face
-	// 	{4, 5, 6, 7}, // Back face
-	// 	{0, 1, 5, 4}, // Top face
-	// 	{2, 3, 7, 6}, // Bottom face
-	// 	{7, 3, 0, 4}, // Left face
-	// 	{1, 2, 6, 5}, // Right face
-	// }
+	faces := [][4]int{
+		{0, 3, 2, 1}, // Front face
+		{4, 5, 6, 7}, // Back face
+		{0, 1, 5, 4}, // Top face
+		{2, 3, 7, 6}, // Bottom face
+		{7, 3, 0, 4}, // Left face
+		{1, 2, 6, 5}, // Right face
+	}
 
-	// // Draw each face of the cube using two triangles
-	// for _, face := range faces {
-	// 	// Split each face into two triangles and draw
-	// 	DrawTriangle3D(
-	// 		cuboid.vertices[face[0]],
-	// 		cuboid.vertices[face[1]],
-	// 		cuboid.vertices[face[2]],
-	// 		camera,
-	// 		img, cuboid.Color, depthBuffer,
-	// 		texture,
-	// 	)
-	// 	DrawTriangle3D(
-	// 		cuboid.vertices[face[0]],
-	// 		cuboid.vertices[face[2]],
-	// 		cuboid.vertices[face[3]],
-	// 		camera,
-	// 		img, cuboid.Color, depthBuffer,
-	// 		texture,
-	// 	)
-	// }
+	// Define UV coordinates for each face's vertices
+	uvs := [][4][2]float64{
+		{{0.0, 0.0}, {1.0, 0.0}, {1.0, 1.0}, {0.0, 1.0}}, // Front face
+		{{0.0, 0.0}, {1.0, 0.0}, {1.0, 1.0}, {0.0, 1.0}}, // Back face
+		{{0.0, 0.0}, {1.0, 0.0}, {1.0, 1.0}, {0.0, 1.0}}, // Top face
+		{{0.0, 0.0}, {1.0, 0.0}, {1.0, 1.0}, {0.0, 1.0}}, // Bottom face
+		{{0.0, 0.0}, {1.0, 0.0}, {1.0, 1.0}, {0.0, 1.0}}, // Left face
+		{{0.0, 0.0}, {1.0, 0.0}, {1.0, 1.0}, {0.0, 1.0}}, // Right face
+	}
+	// Draw each face of the cube using two triangles
+	for i, face := range faces {
+		// Split each face into two triangles and draw
+		uv := uvs[i]
+		DrawTriangle3D(
+			Vertex{cuboid.vertices[face[0]], uv[0][0], uv[0][1]},
+			Vertex{cuboid.vertices[face[1]], uv[1][0], uv[1][1]},
+			Vertex{cuboid.vertices[face[2]], uv[2][0], uv[2][1]},
+			camera,
+			img, cuboid.Color, depthBuffer,
+			texture,
+		)
+		DrawTriangle3D(
+			Vertex{cuboid.vertices[face[0]], uv[0][0], uv[0][1]},
+			Vertex{cuboid.vertices[face[2]], uv[2][0], uv[2][1]},
+			Vertex{cuboid.vertices[face[3]], uv[3][0], uv[3][1]},
+			camera,
+			img, cuboid.Color, depthBuffer,
+			texture,
+		)
+	}
 }
 
 func DrawCuboid(
@@ -425,6 +428,209 @@ func Int26_6ToInt(value fixed.Int26_6) int {
 	return int(value >> 6)
 }
 
+// scratch
+
+type Vertex2 struct {
+	X int
+	Y int
+	Z float64
+	U float64
+	V float64
+}
+
+func f2i(x float64) int {
+	return int(math.Round(x))
+}
+
+const DebugUV = true
+
+func getUVColor(u, v float64, texture *image.RGBA) color.RGBA {
+	if DebugUV {
+		return color.RGBA{100 + uint8(u*255)%50, 100 + uint8(v*255)%50, 100, 255}
+		return color.RGBA{uint8(u * 255), uint8(v * 255), 0, 255}
+	} else {
+		tx := float64(texture.Bounds().Dx())
+		ty := float64(texture.Bounds().Dy())
+		return texture.At(int(u*tx), int(v*ty)).(color.RGBA)
+	}
+}
+
+func renderFlatBottomTriangle(img *image.RGBA, texture *image.RGBA, v [3]Vertex2, depthBuffer *DepthBuffer) {
+	//texSize := Point2D{float64(texture.Bounds().Dx()), float64(texture.Bounds().Dy())}
+	imageSize := Int_2D{img.Bounds().Dx(), img.Bounds().Dy()}
+	// assumes vertices are already ordered such that: v0.Y < v1.Y = v2.Y
+	// sort lower vertices so: v1.X < v2.X
+	if v[1].X > v[2].X {
+		v[1], v[2] = v[2], v[1]
+	}
+
+	m01 := float64(v[1].X-v[0].X) / float64(v[1].Y-v[0].Y)
+	m02 := float64(v[2].X-v[0].X) / float64(v[2].Y-v[0].Y)
+
+	dy := v[1].Y - v[0].Y
+	for y := v[0].Y; y <= v[1].Y; y++ {
+		if y < 0 {
+			continue
+		} else if y >= imageSize.Y-1 {
+			break
+		}
+		ddy := float64(y - v[0].Y)
+		x01 := f2i(ddy*m01) + v[0].X
+		x02 := f2i(ddy*m02) + v[0].X
+
+		ty := ddy / float64(dy)
+		u01 := ty*(v[1].U-v[0].U) + v[0].U
+		u02 := ty*(v[2].U-v[0].U) + v[0].U
+
+		v01 := ty*(v[1].V-v[0].V) + v[0].V
+		v02 := ty*(v[2].V-v[0].V) + v[0].V
+
+		d01 := ty*(v[1].Z-v[0].Z) + v[0].Z
+		d02 := ty*(v[2].Z-v[0].Z) + v[1].Z
+		for x := x01; x <= x02; x++ {
+			if x < 0 {
+				continue
+			} else if x >= imageSize.X-1 {
+				break
+			}
+			t := float64(x-x01) / float64(x02-x01)
+			u := u01 + t*float64(u02-u01)
+			vv := v01 + t*float64(v02-v01)
+
+			// Interpolate U/Z, V/Z, and 1/Z
+			// invDepth1 := 1.0 / d01
+			// invDepth2 := 1.0 / d02
+			// invDepth := invDepth1 + t*(invDepth2-invDepth1)
+
+			// uOverZ := u01/d01 + t*((u02/d02)-(u01/d01))
+			// vOverZ := v01/d01 + t*((v02/d02)-(v01/d01))
+
+			// Calculate perspective-corrected U and V by dividing by interpolated 1/Z
+
+			depth := d02 + t*(d02-d01)
+
+			// u = u / depth
+			// vv = vv / depth
+
+			dbi := y*int(imageSize.X) + x
+			if dbi > len(*depthBuffer) {
+				fmt.Println(dbi, len(*depthBuffer), x, y, imageSize.X)
+				panic("Index out of range")
+			}
+			if depth < (*depthBuffer)[dbi] {
+				(*depthBuffer)[dbi] = depth
+				clr := getUVColor(u, vv, texture)
+				img.Set(x, y, clr)
+			}
+		}
+	}
+}
+
+func renderFlatTopTriangle(img *image.RGBA, texture *image.RGBA, v [3]Vertex2, depthBuffer *DepthBuffer) {
+	// texSize := Point2D{float64(texture.Bounds().Dx()), float64(texture.Bounds().Dy())}
+	imageSize := Int_2D{img.Bounds().Dx(), img.Bounds().Dy()}
+	// assumes vertices are already ordered such that: v0.Y = v1.Y < v2.Y
+	// sort lower vertices so: v0.X < v1.X
+	if v[0].X > v[1].X {
+		v[0], v[1] = v[1], v[0]
+	}
+
+	m02 := float64(v[2].X-v[0].X) / float64(v[2].Y-v[0].Y)
+	m12 := float64(v[2].X-v[1].X) / float64(v[2].Y-v[1].Y)
+
+	for y := v[0].Y; y <= v[2].Y; y++ {
+		if y < 0 {
+			continue
+		} else if y >= imageSize.Y-1 {
+			break
+		}
+		dy := float64(y - v[2].Y)
+		x02 := f2i(dy*m02) + v[2].X
+		x12 := f2i(dy*m12) + v[2].X
+
+		ty := float64(y-v[0].Y) / float64(v[2].Y-v[0].Y)
+
+		u02 := ty*float64(v[2].U-v[0].U) + v[0].U
+		u12 := ty*float64(v[2].U-v[1].U) + v[1].U
+
+		v02 := ty*float64(v[2].V-v[0].V) + v[0].V
+		v12 := ty*float64(v[2].V-v[1].V) + v[1].V
+
+		d02 := ty*(v[2].Z-v[0].Z) + v[0].Z
+		d12 := ty*(v[2].Z-v[1].Z) + v[1].Z
+
+		// fmt.Println(y, ty, v02, v12)
+
+		for x := x02; x <= x12; x++ {
+			if x < 0 {
+				continue
+			} else if x >= imageSize.X-1 {
+				break
+			}
+
+			t := float64(x-x02) / float64(x12-x02)
+			u := u02 + t*float64(u12-u02)
+			vv := v02 + t*float64(v12-v02)
+			depth := d02 + t*(d12-d02)
+			// clr := texture.At(int(u*texSize.X), int(vv*texSize.Y)).(color.RGBA)
+			// clr := color.RGBA{100 + uint8(u*255)%50, 100 + uint8(vv*255)%50, 255, 255}
+
+			dbi := y*int(imageSize.X) + x
+			if dbi > len(*depthBuffer) {
+				fmt.Println(dbi, len(*depthBuffer), x, y, imageSize.X)
+				panic("Index out of range")
+			}
+			if depth < (*depthBuffer)[dbi] {
+				(*depthBuffer)[dbi] = depth
+				clr := getUVColor(u, vv, texture)
+				img.Set(x, y, clr)
+			}
+		}
+	}
+}
+
+func DrawTriangle2D2(img *image.RGBA, p1, p2, p3 ImgPoint, col color.RGBA,
+	depthBuffer *DepthBuffer, texture *image.RGBA,
+) {
+	renderTriangle(
+		img, texture,
+		[3]Vertex2{
+			{p1.X, p1.Y, p1.Z, p1.U, p1.V},
+			{p2.X, p2.Y, p2.Z, p2.U, p2.V},
+			{p3.X, p3.Y, p3.Z, p3.U, p3.V},
+		},
+		depthBuffer,
+	)
+}
+
+func renderTriangle(img *image.RGBA, texture *image.RGBA, v [3]Vertex2, depthBuffer *DepthBuffer) {
+	// sort vertices so v0.Y <= v1.Y <= v2.Y
+	if v[0].Y > v[1].Y {
+		v[0], v[1] = v[1], v[0]
+	}
+	if v[1].Y > v[2].Y {
+		v[1], v[2] = v[2], v[1]
+	}
+	if v[0].Y > v[1].Y {
+		v[0], v[1] = v[1], v[0]
+	}
+
+	if v[1].Y == v[2].Y {
+		renderFlatBottomTriangle(img, texture, v, depthBuffer)
+	} else if v[0].Y == v[1].Y {
+		renderFlatTopTriangle(img, texture, v, depthBuffer)
+	} else {
+		t := float64(v[1].Y-v[0].Y) / float64(v[2].Y-v[0].Y)
+		x := v[0].X + int(t*float64(v[2].X-v[0].X))
+		z := v[0].Z + t*(v[2].Z-v[0].Z)
+		a := v[0].U + t*(v[2].U-v[0].U)
+		b := v[0].V + t*(v[2].V-v[0].V)
+		// fmt.Println(t, a, v[0].U, v[2].U)
+		renderFlatBottomTriangle(img, texture, [3]Vertex2{v[0], {x, v[1].Y, z, a, b}, v[1]}, depthBuffer)
+		renderFlatTopTriangle(img, texture, [3]Vertex2{{x, v[1].Y, z, a, b}, v[1], v[2]}, depthBuffer)
+	}
+}
+
 func DrawObjects(scene *Scene, img *image.RGBA, depthBuffer *DepthBuffer) {
 	// Calculate aspect ratio based on the image dimensions
 
@@ -465,6 +671,7 @@ func DrawObjects(scene *Scene, img *image.RGBA, depthBuffer *DepthBuffer) {
 				mc.Color.A = uint8(float64(mc.Color.A) * alphaScaling)
 				// fmt.Println(mc, globalOffset, localOffset)
 				DrawFilledCuboid(mc, scene.Camera, img, depthBuffer, &scene.Texture)
+				// DrawCuboid(mc, scene.Camera, img)
 				// fmt.Println(mc)
 			}
 		} else if p.Y == 0 {
@@ -500,16 +707,21 @@ func DrawScene(scene *Scene) {
 		}
 	}
 
-	k := 10.0
+	// k := 10.0
 	//front
-	DrawTriangle3D(
-		Vertex{Point3D{0, 0, 0}, 0, 0},
-		Vertex{Point3D{k, 0, 0}, 1, 0},
-		Vertex{Point3D{k, k, 0}, 1, 1},
-		scene.Camera, img, Red.ToRGBA(), &depthBuffer, &scene.Texture,
-	)
+	// DrawTriangle3D(
+	// 	Vertex{Point3D{0, 0, 0}, 0, 0},
+	// 	Vertex{Point3D{k, 0, 0}, 1, 0},
+	// 	Vertex{Point3D{k, k, 0}, 1, 1},
+	// 	scene.Camera, img, Red.ToRGBA(), &depthBuffer, &scene.Texture,
+	// )
 
-	// DrawTriangle3D(Point3D{0, 0, 0}, Point3D{k, k, 0}, Point3D{0, k, 0}, scene.Camera, img, Orange.ToRGBA(), &depthBuffer)
+	// DrawTriangle3D(
+	// 	Vertex{Point3D{0, 0, 0}, 0, 0},
+	// 	Vertex{Point3D{k, k, 0}, 1, 1},
+	// 	Vertex{Point3D{0, k, 0}, 0, 1},
+	// 	scene.Camera, img, Orange.ToRGBA(), &depthBuffer, &scene.Texture,
+	// )
 
 	// // left
 	// DrawTriangle3D(Point3D{0, 0, 0}, Point3D{0, 0, k}, Point3D{0, k, k}, scene.Camera, img, Yellow.ToRGBA(), &depthBuffer)
@@ -524,7 +736,7 @@ func DrawScene(scene *Scene) {
 	// DrawTriangle3D(Point3D{k, 0, 0}, Point3D{k, 0, k}, Point3D{k, k, k}, scene.Camera, img, Cyan.ToRGBA(), &depthBuffer)
 	// DrawTriangle3D(Point3D{k, 0, 0}, Point3D{k, k, k}, Point3D{k, k, 0}, scene.Camera, img, Blue.ToRGBA(), &depthBuffer)
 
-	//DrawObjects(scene, img, &depthBuffer)
+	DrawObjects(scene, img, &depthBuffer)
 
 	fontSize := Int26_6ToInt(scene.FontFace.Metrics().Height)
 	DrawText(img, 4, fontSize,
@@ -545,7 +757,7 @@ func DrawScene(scene *Scene) {
 	DrawText(img, 4, fontSize*3, fmt.Sprintf("XYZ: %.1f, %.1f, %.1f", scene.Camera.Position.X, scene.Camera.Position.Y, scene.Camera.Position.Z), Cyan.ToRGBA(), scene.FontFace)
 
 	// Create the output file
-	file, err := os.Create("scene.png")
+	file, err := os.Create("output/scene.png")
 	if err != nil {
 		panic(err)
 	}

@@ -8,7 +8,7 @@ type Point2D struct {
 type ImgPoint struct {
 	X, Y int
 	Z    float64
-	U, V int
+	U, V float64
 }
 
 type Int_2D struct {

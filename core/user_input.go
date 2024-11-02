@@ -10,8 +10,8 @@ func createSimpleWorld(world *World) {
 	// levers arond a lamp
 	p := Vec3{X: 0, Y: 2, Z: 0}
 	// world.SetBlock(p, RedstoneLamp{InputPowerType: None})
-	//world.SetBlock(p.Move(Up), WoolBlock{Cyan, None})
-	world.SetBlock(p.Move(Up), RedstoneTorch{Direction: Up, IsPowered: true})
+	world.SetBlock(p.Move(Up), WoolBlock{Cyan, None})
+	// world.SetBlock(p.Move(Up), RedstoneTorch{Direction: Up, IsPowered: true})
 
 	// for _, d := range [6]Direction{Left, Right, Front, Back, Up, Down} {
 	// 	world.SetBlock(
@@ -116,7 +116,7 @@ func ProcessUserInputs(iteration int, world *World) bool {
 	// currently just handles programatic changes to the world to simulate user interaction
 	var hasAnyBlockUpdated bool = false
 	if iteration == 0 {
-		//createWorld(world)
+		// createWorld(world)
 		createSimpleWorld(world)
 		hasAnyBlockUpdated = true
 	}
