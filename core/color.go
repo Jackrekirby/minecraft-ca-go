@@ -2,6 +2,7 @@ package core
 
 import (
 	"image/color"
+	"math"
 )
 
 type Color int
@@ -106,4 +107,36 @@ func CombineColors(src color.RGBA, dst color.RGBA) color.RGBA {
 	newB := uint8((float64(dst.B)*(1-alpha) + float64(src.B)*alpha) * (float64(newA) / 255.0))
 
 	return color.RGBA{R: newR, G: newG, B: newB, A: newA}
+}
+
+// HSVToRGB converts a hue (0-360), saturation (0-1), and value (0-1) to RGB values.
+func HSVToRGB(h, s, v float64) (r, g, b uint8) {
+	c := v * s
+	x := c * (1 - math.Abs(math.Mod(h/60.0, 2)-1))
+	m := v - c
+
+	var rf, gf, bf float64
+	switch {
+	case 0 <= h && h < 60:
+		rf, gf, bf = c, x, 0
+	case 60 <= h && h < 120:
+		rf, gf, bf = x, c, 0
+	case 120 <= h && h < 180:
+		rf, gf, bf = 0, c, x
+	case 180 <= h && h < 240:
+		rf, gf, bf = 0, x, c
+	case 240 <= h && h < 300:
+		rf, gf, bf = x, 0, c
+	case 300 <= h && h < 360:
+		rf, gf, bf = c, 0, x
+	default:
+		rf, gf, bf = 0, 0, 0
+	}
+
+	// Convert float RGB to uint8 and adjust by m to account for brightness
+	r = uint8((rf + m) * 255)
+	g = uint8((gf + m) * 255)
+	b = uint8((bf + m) * 255)
+
+	return
 }

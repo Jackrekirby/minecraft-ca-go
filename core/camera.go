@@ -1,6 +1,8 @@
 package core
 
-import "math"
+import (
+	"math"
+)
 
 // Camera represents the camera in 3D space, with position, rotation, and projection parameters
 type Camera struct {
@@ -33,6 +35,8 @@ func (c *Camera) Convert3DTo2D(point Point3D) *Point2D {
 	ndcX := p.X * fovRad * c.AspectRatio
 	ndcY := p.Y * fovRad
 	ndcZ := p.Z * q
+
+	// fmt.Println("op,tp,q,zq", point, p, q, ndcZ)
 
 	// Project to screen coordinates
 	screenX := ndcX / ndcZ

@@ -116,8 +116,8 @@ func ProcessUserInputs(iteration int, world *World) bool {
 	// currently just handles programatic changes to the world to simulate user interaction
 	var hasAnyBlockUpdated bool = false
 	if iteration == 0 {
-		// createWorld(world)
-		createSimpleWorld(world)
+		createWorld(world)
+		//createSimpleWorld(world)
 		hasAnyBlockUpdated = true
 	}
 	if iteration%32 == 4 || iteration%32 == 20 {
@@ -191,9 +191,9 @@ func KeyboardEvents(scene *Scene) {
 		case 'd':
 			camera.Position = camera.Position.Add(Point3D{delta, 0, 0}.RotateY(-camera.Rotation.Y))
 		case 'e':
-			camera.Position = camera.Position.Add(Point3D{0, 1, 0})
+			camera.Position = camera.Position.Add(Point3D{0, delta, 0})
 		case 'c':
-			camera.Position = camera.Position.Add(Point3D{0, -1, 0})
+			camera.Position = camera.Position.Add(Point3D{0, -delta, 0})
 		case 'z':
 			camera.Rotation.Y = camera.Rotation.Y + rotation
 		case 'x':
