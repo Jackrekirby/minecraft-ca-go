@@ -328,9 +328,24 @@ func interpolateImgPoint(p1, p2 ImgPoint, y int) ImgPoint {
 type Cuboid struct {
 	vertices [8]Point3D
 	Color    color.RGBA
+	uvs      [][4][2]float64
 }
 
-func MakeAxisAlignedCuboid(min, max Point3D, color color.RGBA) Cuboid {
+func MakeCuboidUVsForSingleTexture(texture string, scene *Scene) [][4][2]float64 {
+	return CreateCuboidUVs(0, 0, 16.0, 16.0, texture, scene)
+}
+
+func MakeCuboidUVs(textures [6]string, scene *Scene) [][4][2]float64 {
+	uvs := make([][4][2]float64, 6)
+	for i := 0; i < 6; i++ {
+		// inefficent generation of uvs for same texture and not all faces needed
+		uvsForTexture := CreateCuboidUVs(0, 0, 16.0, 16.0, textures[i], scene)
+		uvs[i] = uvsForTexture[i]
+	}
+	return uvs
+}
+
+func MakeAxisAlignedCuboid(min, max Point3D, color color.RGBA, uvs [][4][2]float64) Cuboid {
 	vertices := [...]Point3D{
 		{min.X, min.Y, min.Z}, // 0: Left-bottom-front
 		{max.X, min.Y, min.Z}, // 1: Right-bottom-front
@@ -341,7 +356,8 @@ func MakeAxisAlignedCuboid(min, max Point3D, color color.RGBA) Cuboid {
 		{max.X, max.Y, max.Z}, // 6: Right-top-back
 		{min.X, max.Y, max.Z}, // 7: Left-top-back
 	}
-	return Cuboid{vertices, color}
+
+	return Cuboid{vertices, color, uvs}
 }
 
 func (c Cuboid) Move(offset Point3D) Cuboid {
@@ -353,12 +369,44 @@ func (c Cuboid) Move(offset Point3D) Cuboid {
 
 type DepthBuffer []float64
 
+func denormaliseCuboidUVs(tilemap *Tilemap, uvs [][4][2]float64) [][4][2]float64 {
+	w := float64(tilemap.Image.Bounds().Dx())
+	h := float64(tilemap.Image.Bounds().Dy())
+	for face := 0; face < len(uvs); face++ {
+		for vertex := 0; vertex < 4; vertex++ {
+			uvs[face][vertex][0] *= w
+			uvs[face][vertex][1] *= h
+		}
+	}
+	return uvs
+}
+
+func CreateCuboidUVs(u, v, du, dv float64, texture string, scene *Scene) [][4][2]float64 {
+	meta := scene.Tilemap.Metas[texture]
+	w := float64(scene.Tilemap.Image.Bounds().Dx())
+	h := float64(scene.Tilemap.Image.Bounds().Dy())
+
+	// x0, y0, x1, y1 := meta.U*w, meta.V*h, (meta.U+meta.Width)*w, (meta.V+meta.Height)*h
+	x0, y0 := (meta.U + u/w), (meta.V + v/h)
+	x1, y1 := x0+(du/w), y0+(dv/h)
+
+	uvs := [][4][2]float64{
+		{{x1, y1}, {x1, y0}, {x0, y0}, {x0, y1}}, // Front face
+		{{x1, y1}, {x0, y1}, {x0, y0}, {x1, y0}}, // Back face
+		{{x0, y0}, {x1, y0}, {x1, y1}, {x0, y1}}, // Top face
+		{{x0, y0}, {x1, y0}, {x1, y1}, {x0, y1}}, // Bottom face
+		{{x0, y0}, {x1, y0}, {x1, y1}, {x0, y1}}, // Left face
+		{{x1, y1}, {x1, y0}, {x0, y0}, {x0, y1}}, // Right face
+	}
+	return uvs
+}
+
 func DrawFilledCuboid(
 	cuboid Cuboid,
 	camera Camera,
 	img *image.RGBA,
 	depthBuffer *DepthBuffer,
-	texture *image.RGBA,
+	tilemap *Tilemap,
 ) {
 	// Define the faces of the cube with four vertices each
 	faces := [][4]int{
@@ -371,18 +419,20 @@ func DrawFilledCuboid(
 	}
 
 	// Define UV coordinates for each face's vertices
-	uvs := [][4][2]float64{
-		{{1.0, 1.0}, {1.0, 0.0}, {0.0, 0.0}, {0.0, 1.0}}, // Front face
-		{{1.0, 1.0}, {0.0, 1.0}, {0.0, 0.0}, {1.0, 0.0}}, // Back face
-		{{0.0, 0.0}, {1.0, 0.0}, {1.0, 1.0}, {0.0, 1.0}}, // Top face
-		{{0.0, 0.0}, {1.0, 0.0}, {1.0, 1.0}, {0.0, 1.0}}, // Bottom face
-		{{0.0, 0.0}, {1.0, 0.0}, {1.0, 1.0}, {0.0, 1.0}}, // Left face
-		{{1.0, 1.0}, {1.0, 0.0}, {0.0, 0.0}, {0.0, 1.0}}, // Right face
-	}
-
+	// uvs := [][4][2]float64{
+	// 	{{1.0, 1.0}, {1.0, 0.0}, {0.0, 0.0}, {0.0, 1.0}}, // Front face
+	// 	{{1.0, 1.0}, {0.0, 1.0}, {0.0, 0.0}, {1.0, 0.0}}, // Back face
+	// 	{{0.0, 0.0}, {1.0, 0.0}, {1.0, 1.0}, {0.0, 1.0}}, // Top face
+	// 	{{0.0, 0.0}, {1.0, 0.0}, {1.0, 1.0}, {0.0, 1.0}}, // Bottom face
+	// 	{{0.0, 0.0}, {1.0, 0.0}, {1.0, 1.0}, {0.0, 1.0}}, // Left face
+	// 	{{1.0, 1.0}, {1.0, 0.0}, {0.0, 0.0}, {0.0, 1.0}}, // Right face
+	// }
+	uvs := denormaliseCuboidUVs(tilemap, cuboid.uvs)
 	// Draw each face of the cube using two triangles
 	for i, face := range faces {
 		// Split each face into two triangles and draw
+		// uvs := createCuboidUVs(tilemap, cuboid.textures[i])
+
 		uv := uvs[i]
 		DrawTriangle3D(
 			Vertex{cuboid.vertices[face[0]], uv[0][0], uv[0][1]},
@@ -390,7 +440,7 @@ func DrawFilledCuboid(
 			Vertex{cuboid.vertices[face[2]], uv[2][0], uv[2][1]},
 			camera,
 			img, cuboid.Color, depthBuffer,
-			texture,
+			&tilemap.Image,
 		)
 		DrawTriangle3D(
 			Vertex{cuboid.vertices[face[0]], uv[0][0], uv[0][1]},
@@ -398,7 +448,7 @@ func DrawFilledCuboid(
 			Vertex{cuboid.vertices[face[3]], uv[3][0], uv[3][1]},
 			camera,
 			img, cuboid.Color, depthBuffer,
-			texture,
+			&tilemap.Image,
 		)
 	}
 }
@@ -490,9 +540,9 @@ func getUVColor(u, v, depth float64, texture *image.RGBA) color.RGBA {
 		return color.RGBA{100 + uint8(u*255)%50, 100 + uint8(v*255)%50, 100, 255}
 		return color.RGBA{uint8(u * 255), uint8(v * 255), 0, 255}
 	} else {
-		tx := float64(texture.Bounds().Dx())
-		ty := float64(texture.Bounds().Dy())
-		return texture.At(int(u*tx), int(v*ty)).(color.RGBA)
+		// tx := float64(texture.Bounds().Dx())
+		// ty := float64(texture.Bounds().Dy())
+		return texture.At(int(u), int(v)).(color.RGBA)
 	}
 }
 
@@ -584,7 +634,11 @@ func renderFlatBottomTriangle(img *image.RGBA, texture *image.RGBA, v [3]Vertex2
 			if depth < (*depthBuffer)[dbi] {
 				(*depthBuffer)[dbi] = depth
 				clr := getUVColor(u, vv, depth, texture)
-				img.Set(x, y, clr)
+				// img.Set(x, y, clr)
+
+				currentColor := img.RGBAAt(x, y)
+				newColor := CombineColors(clr, currentColor)
+				img.Set(x, y, newColor)
 			}
 		}
 	}
@@ -686,7 +740,9 @@ func renderFlatTopTriangle(img *image.RGBA, texture *image.RGBA, v [3]Vertex2, d
 			if depth < (*depthBuffer)[dbi] {
 				(*depthBuffer)[dbi] = depth
 				clr := getUVColor(u, vv, depth, texture)
-				img.Set(x, y, clr)
+				currentColor := img.RGBAAt(x, y)
+				newColor := CombineColors(clr, currentColor)
+				img.Set(x, y, newColor)
 			}
 		}
 	}
@@ -751,7 +807,7 @@ func renderTriangle(img *image.RGBA, texture *image.RGBA, v [3]Vertex2, depthBuf
 func DrawObjects(scene *Scene, img *image.RGBA, depthBuffer *DepthBuffer) {
 	// Calculate aspect ratio based on the image dimensions
 
-	blockSize := 1
+	// blockSize := 1
 
 	// gridSize := 16
 	// fHalfGridSize := float64(gridSize) / 2.0
@@ -781,30 +837,30 @@ func DrawObjects(scene *Scene, img *image.RGBA, depthBuffer *DepthBuffer) {
 		// }
 
 		if isRenderable {
-			for _, c := range rb.ToCuboids() {
+			for _, c := range rb.ToCuboids(scene) {
 
 				mc := c.Move(localOffset)
 
 				mc.Color.A = uint8(float64(mc.Color.A) * alphaScaling)
 				// fmt.Println(mc, globalOffset, localOffset)
-				DrawFilledCuboid(mc, scene.Camera, img, depthBuffer, &scene.Texture)
+				DrawFilledCuboid(mc, scene.Camera, img, depthBuffer, &scene.Tilemap)
 				// DrawCuboid(mc, scene.Camera, img)
 				// fmt.Println(mc)
 			}
 		} else if p.Y == 0 {
-			minP := Point3D{
-				X: float64(p.X * blockSize),
-				Y: float64(p.Y * blockSize),
-				Z: float64(p.Z * blockSize),
-			}
-			maxP := Point3D{
-				X: float64((p.X + 1) * blockSize),
-				Y: float64((p.Y + 1) * blockSize),
-				Z: float64((p.Z + 1) * blockSize),
-			}
-			c := MakeAxisAlignedCuboid(minP, maxP, color.RGBA{255, 255, 255, 100})
-			c.Color.A = uint8(float64(c.Color.A) * alphaScaling)
-			// DrawCuboid(c, scene.Camera, img)
+			// minP := Point3D{
+			// 	X: float64(p.X * blockSize),
+			// 	Y: float64(p.Y * blockSize),
+			// 	Z: float64(p.Z * blockSize),
+			// }
+			// maxP := Point3D{
+			// 	X: float64((p.X + 1) * blockSize),
+			// 	Y: float64((p.Y + 1) * blockSize),
+			// 	Z: float64((p.Z + 1) * blockSize),
+			// }
+			// c := MakeAxisAlignedCuboid(minP, maxP, color.RGBA{255, 255, 255, 100}, [6]string{"test", "test", "test", "test", "test", "test"})
+			// // c.Color.A = uint8(float64(c.Color.A) * alphaScaling)
+			// DrawFilledCuboid(c, scene.Camera, img, depthBuffer, &scene.Tilemap)
 		}
 	}
 }
@@ -828,16 +884,16 @@ func DrawScene(scene *Scene) {
 	// //front
 	// DrawTriangle3D(
 	// 	Vertex{Point3D{0, 0, 0}, 0, 0},
-	// 	Vertex{Point3D{k, 0, 0}, 1, 0},
-	// 	Vertex{Point3D{k, k, 0}, 1, 1},
-	// 	scene.Camera, img, Red.ToRGBA(), &depthBuffer, &scene.Texture,
+	// 	Vertex{Point3D{k, 0, 0}, 16, 0},
+	// 	Vertex{Point3D{k, k, 0}, 16, 16},
+	// 	scene.Camera, img, Red.ToRGBA(), &depthBuffer, &scene.Tilemap.Image,
 	// )
 
 	// DrawTriangle3D(
 	// 	Vertex{Point3D{0, 0, 0}, 0, 0},
-	// 	Vertex{Point3D{k, k, 0}, 1, 1},
-	// 	Vertex{Point3D{0, k, 0}, 0, 1},
-	// 	scene.Camera, img, Orange.ToRGBA(), &depthBuffer, &scene.Texture,
+	// 	Vertex{Point3D{k, k, 0}, 16, 16},
+	// 	Vertex{Point3D{0, k, 0}, 0, 16},
+	// 	scene.Camera, img, Orange.ToRGBA(), &depthBuffer, &scene.Tilemap.Image,
 	// )
 
 	// // left

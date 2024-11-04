@@ -29,5 +29,5 @@ type RenderableBlock interface {
 }
 
 type WireRenderBlock interface {
-	ToCuboids() []Cuboid
+	ToCuboids(scene *Scene) []Cuboid
 }

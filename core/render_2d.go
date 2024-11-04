@@ -5,9 +5,11 @@ import (
 	"image"
 	"image/color"
 	"image/png"
+	"io/fs"
 	"math"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"golang.org/x/image/draw"
@@ -100,24 +102,43 @@ func scaleImage(original image.Image, multiplier float64, interpolator draw.Inte
 	return scaledImage
 }
 
-func GenerateTilemap(dir string, tileSize int) (image.Image, error) {
+type TextureMeta struct {
+	// normalised coordinates
+	U      float64
+	V      float64
+	Width  float64
+	Height float64
+}
+
+type Tilemap struct {
+	Image image.RGBA
+	Metas map[string]TextureMeta
+}
+
+func GenerateTilemap(dir string, tileSize int) (*Tilemap, error) {
 	files, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
 	}
 
 	var images []image.Image
+	textureMetas := make(map[string]TextureMeta)
+
+	var imageFiles []fs.DirEntry
 
 	// Load all PNG files in the directory
 	for _, file := range files {
 		if !file.IsDir() && filepath.Ext(file.Name()) == ".png" {
-			img, err := loadImage(filepath.Join(dir, file.Name()))
-			if err != nil {
-				return nil, err
-			}
-			// Scale image if necessary (optional)
-			images = append(images, img)
+			imageFiles = append(imageFiles, file)
 		}
+	}
+
+	for _, file := range imageFiles {
+		img, err := loadImage(filepath.Join(dir, file.Name()))
+		if err != nil {
+			return nil, err
+		}
+		images = append(images, img)
 	}
 
 	if len(images) == 0 {
@@ -128,22 +149,33 @@ func GenerateTilemap(dir string, tileSize int) (image.Image, error) {
 	tilesPerDim := int(math.Ceil(math.Sqrt(float64(len(images)))))
 	tilemapSize := tilesPerDim * tileSize
 
-	fmt.Println(tilesPerDim, tilemapSize)
-
 	// Create a new tilemap image
-	tilemap := image.NewRGBA(image.Rect(0, 0, tilemapSize, tilemapSize))
+	agg_image := image.NewRGBA(image.Rect(0, 0, tilemapSize, tilemapSize))
 
-	// Draw each image into the tilemap
+	// Draw each image into the tilemap and calculate UV coordinates
 	for i, img := range images {
-		dstRect := image.Rect(
-			(i%tilesPerDim)*tileSize, (i/tilesPerDim)*tileSize,
-			(i%tilesPerDim+1)*tileSize, (i/tilesPerDim+1)*tileSize,
-		)
-		fmt.Println(i, dstRect)
-		draw.Draw(tilemap, dstRect, img, image.Point{0, 0}, draw.Over)
+		// Calculate destination rectangle
+		x := (i % tilesPerDim) * tileSize
+		y := (i / tilesPerDim) * tileSize
+		dstRect := image.Rect(x, y, x+tileSize, y+tileSize)
+
+		// Draw the image in the tilemap
+		draw.Draw(agg_image, dstRect, img, image.Point{0, 0}, draw.Over)
+
+		// Calculate normalized UV coordinates
+		u := float64(x) / float64(tilemapSize)
+		v := float64(y) / float64(tilemapSize)
+		uWidth := float64(tileSize) / float64(tilemapSize)
+		vHeight := float64(tileSize) / float64(tilemapSize)
+
+		// Map filename to UV coordinates
+
+		filename := imageFiles[i].Name()
+		nameWithoutExt := strings.TrimSuffix(filename, filepath.Ext(filename))
+		textureMetas[nameWithoutExt] = TextureMeta{u, v, uWidth, vHeight}
 	}
 
-	return tilemap, nil
+	return &Tilemap{*agg_image, textureMetas}, nil
 }
 
 func SaveImage(img image.Image, path string) error {

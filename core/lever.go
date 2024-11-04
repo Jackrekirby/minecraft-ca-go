@@ -19,12 +19,13 @@ func (b Lever) OutputsStrongPowerInDirection(d Direction) bool {
 	return b.IsOn && b.Direction == d.GetOppositeDirection()
 }
 
-func (b Lever) ToCuboids() []Cuboid {
+func (b Lever) ToCuboids(scene *Scene) []Cuboid {
 	s := Point3DFromScalar(16)
 	stick := MakeAxisAlignedCuboid(
 		Point3D{7, 3, 7}.Divide(s),
 		Point3D{9, 11, 9}.Divide(s),
 		color.RGBA{160, 127, 81, 255},
+		MakeCuboidUVsForSingleTexture("oak_planks", scene),
 	)
 	var rx float64
 	if b.IsOn {
@@ -42,6 +43,7 @@ func (b Lever) ToCuboids() []Cuboid {
 		Point3D{5, 0, 4}.Divide(s),
 		Point3D{11, 3, 12}.Divide(s),
 		color.RGBA{100, 100, 100, 255},
+		MakeCuboidUVsForSingleTexture("stone", scene),
 	)
 
 	cuboids := []Cuboid{

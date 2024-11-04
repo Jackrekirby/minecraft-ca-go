@@ -2,7 +2,6 @@ package core
 
 import (
 	"fmt"
-	"image"
 	"time"
 
 	"golang.org/x/image/font"
@@ -24,7 +23,7 @@ type Scene struct {
 	RecordedStepsPerSecond            int
 
 	FontFace font.Face // should be a store of multiple fonts or internal handler for loaded assets
-	Texture  image.RGBA
+	Tilemap  Tilemap
 }
 
 func ratePerSecondToDuration(rate int) time.Duration {
@@ -141,11 +140,19 @@ func RunEngine() {
 	}
 	scene.FontFace = fontFace
 
-	img, err2 := loadImage("assets/crafting_table_front.png")
-	if err2 != nil {
-		panic(fmt.Sprintf("failed to load img: %v", err))
+	// img, err2 := loadImage("assets/crafting_table_front.png")
+	// if err2 != nil {
+	// 	panic(fmt.Sprintf("failed to load img: %v", err2))
+	// }
+	// scene.Texture = *ImageToRGBA(img)
+
+	tilemap, err3 := GenerateTilemap("assets", 16)
+	if err3 != nil {
+		panic(fmt.Sprintf("failed to load img: %v", err3))
 	}
-	scene.Texture = *ImageToRGBA(img)
+	SaveImage(&tilemap.Image, "output/tilemap.png")
+	// fmt.Println(tilemap.Metas)
+	scene.Tilemap = *tilemap
 
 	// createWorld(&scene.World)
 

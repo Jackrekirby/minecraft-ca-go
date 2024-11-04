@@ -1,5 +1,7 @@
 package core
 
+import "fmt"
+
 type WoolBlock struct {
 	Color          Color
 	InputPowerType PowerType
@@ -28,12 +30,13 @@ func (b WoolBlock) SubUpdate(p Vec3, w *World) (Block, bool) {
 	return b, hasUpdated
 }
 
-func (b WoolBlock) ToCuboids() []Cuboid {
+func (b WoolBlock) ToCuboids(scene *Scene) []Cuboid {
 	return []Cuboid{
 		MakeAxisAlignedCuboid(
 			Point3D{0, 0, 0},
 			Point3D{1, 1, 1},
 			b.Color.ToRGBA(),
+			MakeCuboidUVsForSingleTexture(fmt.Sprintf("%s_wool", ToSnakeCase(b.Color.String())), scene),
 		),
 	}
 }

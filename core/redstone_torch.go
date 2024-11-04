@@ -47,30 +47,49 @@ func (b RedstoneTorch) ToRune() rune {
 	}
 }
 
-func (b RedstoneTorch) ToCuboids() []Cuboid {
+func (b RedstoneTorch) ToCuboids(scene *Scene) []Cuboid {
 	s := Point3DFromScalar(16)
-	var c uint8
+	// var c uint8
+	var tex string
 	if b.IsPowered {
-		c = 255
+		// c = 255
+		tex = "redstone_torch"
 	} else {
-		c = 150
+		// c = 150
+		tex = "redstone_torch_off"
 	}
 
-	torch_base := MakeAxisAlignedCuboid(
+	torch_cuboid := MakeAxisAlignedCuboid(
 		Point3D{7, 0, 7}.Divide(s),
-		Point3D{9, 7, 9}.Divide(s),
+		Point3D{9, 10, 9}.Divide(s),
 		color.RGBA{160, 127, 81, 255},
+		CreateCuboidUVs(7, 6, 2, 10, tex, scene),
 	)
 
-	torch_head := MakeAxisAlignedCuboid(
-		Point3D{7, 7, 7}.Divide(s),
-		Point3D{9, 9, 9}.Divide(s),
-		color.RGBA{c, 0, 0, 255},
-	)
+	// torch_base := MakeAxisAlignedCuboid(
+	// 	Point3D{7, 0, 7}.Divide(s),
+	// 	Point3D{9, 7, 9}.Divide(s),
+	// 	color.RGBA{160, 127, 81, 255},
+	// 	CreateCuboidUVs(7, 4, 2, 12, tex, scene),
+	// 	// MakeCuboidUVs(
+	// 	// 	[6]string{"redstone_torch", "test", "test", "test", "test", "test"},
+	// 	// 	scene,
+	// 	// ),
+	// )
+
+	// torch_head := MakeAxisAlignedCuboid(
+	// 	Point3D{7, 7, 7}.Divide(s),
+	// 	Point3D{9, 9, 9}.Divide(s),
+	// 	color.RGBA{c, 0, 0, 255},
+	// 	MakeCuboidUVs(
+	// 		[6]string{"test", "test", "test", "test", "test", "test"},
+	// 		scene,
+	// 	),
+	// )
 
 	cuboids := []Cuboid{
-		torch_base,
-		torch_head,
+		torch_cuboid,
+		// torch_head,
 	}
 
 	var ry, rz float64 = 0, 0
