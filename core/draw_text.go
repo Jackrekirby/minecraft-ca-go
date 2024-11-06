@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"image"
 	"image/color"
 	"image/png"
@@ -21,7 +22,7 @@ func DrawTextExample() {
 	draw.Draw(img, img.Bounds(), &image.Uniform{colornames.White}, image.Point{}, draw.Src)
 
 	// Load Cascadia Mono font with a larger font size
-	fontFace, err := LoadTrueTypeFont("assets/CascadiaMono.ttf", 48)
+	fontFace, err := LoadTrueTypeFont("CascadiaMono.ttf", 48)
 	if err != nil {
 		log.Fatalf("failed to load font: %v", err)
 	}
@@ -40,12 +41,14 @@ func DrawTextExample() {
 
 // loadTrueTypeFont loads a TTF font from a file and sets the font size.
 func LoadTrueTypeFont(fontPath string, fontSize float64) (font.Face, error) {
-	fontBytes, err := os.ReadFile(fontPath)
+	fontBytes, err := LoadAsset(fontPath)
 	if err != nil {
+		fmt.Println("Failed to read ttf file")
 		return nil, err
 	}
 	ttf, err := opentype.Parse(fontBytes)
 	if err != nil {
+		fmt.Println("Failed to parse ttf file")
 		return nil, err
 	}
 	face, err := opentype.NewFace(ttf, &opentype.FaceOptions{
@@ -53,6 +56,9 @@ func LoadTrueTypeFont(fontPath string, fontSize float64) (font.Face, error) {
 		DPI:     72,
 		Hinting: font.HintingFull,
 	})
+	if err != nil {
+		fmt.Println("Failed to create face from ttf")
+	}
 	return face, err
 }
 

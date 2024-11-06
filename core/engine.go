@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"image"
 	"time"
 
 	"golang.org/x/image/font"
@@ -30,11 +31,12 @@ func ratePerSecondToDuration(rate int) time.Duration {
 	return time.Duration(1.0/float64(rate)*1000.0) * time.Millisecond
 }
 
-func runRenderLoop(scene *Scene) {
+func runRenderLoop(scene *Scene, img *image.RGBA) {
 	period := ratePerSecondToDuration(scene.FramesPerSecond)
 	for scene.GameState != Quit {
 		startTime := time.Now()
-		DrawScene(scene)
+		DrawScene(scene, img)
+		OutputSceneImage(img)
 		elapsedTime := time.Since(startTime)
 		scene.RecordedFramesPerSecond = int(1.0 / elapsedTime.Seconds())
 		sleepTime := period - elapsedTime
@@ -106,7 +108,7 @@ func runGameSave(scene *Scene) {
 	}
 }
 
-func RunEngine() {
+func RunEngine(sceneImage *image.RGBA) {
 	fmt.Println("Minecraft 3D Celluar Automata in Go")
 
 	gameSave, err := LoadGameSave()
@@ -134,17 +136,11 @@ func RunEngine() {
 	}
 
 	// load assets
-	fontFace, err := LoadTrueTypeFont("assets/CascadiaMono.ttf", 18)
+	fontFace, err := LoadTrueTypeFont("CascadiaMono.ttf", 18)
 	if err != nil {
 		panic(fmt.Sprintf("failed to load font: %v", err))
 	}
 	scene.FontFace = fontFace
-
-	// img, err2 := loadImage("assets/crafting_table_front.png")
-	// if err2 != nil {
-	// 	panic(fmt.Sprintf("failed to load img: %v", err2))
-	// }
-	// scene.Texture = *ImageToRGBA(img)
 
 	tilemap, err3 := GenerateTilemap("assets", 16)
 	if err3 != nil {
@@ -157,7 +153,7 @@ func RunEngine() {
 	// createWorld(&scene.World)
 
 	go KeyboardEvents(&scene)
-	go runRenderLoop(&scene)
+	go runRenderLoop(&scene, sceneImage)
 	go runGameSave(&scene)
 	runGameLoop(&scene)
 }

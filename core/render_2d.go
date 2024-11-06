@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bytes"
 	"fmt"
 	"image"
 	"image/color"
@@ -77,13 +78,15 @@ func ImageToRGBA(img image.Image) *image.RGBA {
 }
 
 func loadImage(filePath string) (image.Image, error) {
-	file, err := os.Open(filePath)
+	file, err := LoadAsset(filePath)
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	// defer file.Close()
 
-	img, _, err := image.Decode(file)
+	reader := bytes.NewReader(file)
+
+	img, _, err := image.Decode(reader)
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +121,7 @@ type Tilemap struct {
 // TextureMeta and Tilemap structs defined as before
 
 func GenerateTilemap(dir string, tileSize int) (*Tilemap, error) {
-	files, err := os.ReadDir(dir)
+	files, err := LoadAssets()
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +138,7 @@ func GenerateTilemap(dir string, tileSize int) (*Tilemap, error) {
 	}
 
 	for _, file := range imageFiles {
-		img, err := loadImage(filepath.Join(dir, file.Name()))
+		img, err := loadImage(file.Name())
 		if err != nil {
 			return nil, err
 		}

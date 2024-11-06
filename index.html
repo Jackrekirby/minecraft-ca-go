@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MC-CA-GO</title>
+  </head>
+  <body>
+    <canvas id="canvas"></canvas>
+
+    <script src="wasm_exec.js"></script>
+    <script>
+      // Set up the Go WASM environment.
+      const go = new Go()
+      WebAssembly.instantiateStreaming(
+        fetch('main.wasm'),
+        go.importObject
+      ).then(result => {
+        go.run(result.instance)
+        // Call the Go function to load and display the image.
+        loadAndDisplayImage()
+      })
+    </script>
+  </body>
+</html>

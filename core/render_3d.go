@@ -4,9 +4,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
-	"image/png"
 	"math"
-	"os"
 
 	"golang.org/x/image/math/fixed"
 )
@@ -865,9 +863,9 @@ func DrawObjects(scene *Scene, img *image.RGBA, depthBuffer *DepthBuffer) {
 	}
 }
 
-func DrawScene(scene *Scene) {
+func DrawScene(scene *Scene, img *image.RGBA) {
 	imageSize := 512
-	img := image.NewRGBA(image.Rect(0, 0, imageSize, imageSize))
+	// img := image.NewRGBA(image.Rect(0, 0, imageSize, imageSize))
 
 	depthBuffer := make(DepthBuffer, imageSize*imageSize)
 	for i := range depthBuffer {
@@ -930,13 +928,13 @@ func DrawScene(scene *Scene) {
 	DrawText(img, 4, fontSize*3, fmt.Sprintf("XYZ: %.1f, %.1f, %.1f", scene.Camera.Position.X, scene.Camera.Position.Y, scene.Camera.Position.Z), Cyan.ToRGBA(), scene.FontFace)
 
 	// Create the output file
-	file, err := os.Create("output/scene.png")
-	if err != nil {
-		panic(err)
-	}
-	defer file.Close()
+	// file, err := os.Create("output/scene.png")
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// defer file.Close()
 
-	if err := png.Encode(file, img); err != nil {
-		panic(err)
-	}
+	// if err := png.Encode(file, img); err != nil {
+	// 	panic(err)
+	// }
 }
