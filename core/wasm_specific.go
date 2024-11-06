@@ -16,8 +16,10 @@ func drawFrame(frameBuffer *image.RGBA, width, height int, ctx js.Value) {
 	jsData := js.Global().Get("Uint8ClampedArray").New(len(frameBuffer.Pix))
 	js.CopyBytesToJS(jsData, frameBuffer.Pix)
 
-	// Create ImageData and put it on the canvas
+	// Create ImageData object
 	imgData := js.Global().Get("ImageData").New(jsData, width, height)
+
+	// Scale and draw the image data on the canvas
 	ctx.Call("putImageData", imgData, 0, 0)
 }
 
@@ -37,48 +39,38 @@ func loadAndDisplayImage(this js.Value, args []js.Value) interface{} {
 	canvas := document.Call("getElementById", "canvas")
 	ctx := canvas.Call("getContext", "2d")
 
-	width := 512
-	height := 512
+	// Get the current screen size
+	screenWidth := js.Global().Get("window").Get("innerWidth").Int()
+	screenHeight := js.Global().Get("window").Get("innerHeight").Int()
 
-	canvas.Set("width", width)
-	canvas.Set("height", height)
+	// Choose the shorter dimension to maintain aspect ratio
+	// screenShortDim := min(screenWidth, screenHeight)
 
+	// Set canvas size to fill the smaller screen dimension
+	canvas.Set("width", screenWidth)
+	canvas.Set("height", screenHeight)
+
+	// Create a new RGBA image buffer with the default resolution (can be adjusted if needed)
+	width := screenWidth
+	height := screenHeight
+
+	// Create a new RGBA image buffer
 	sceneImage := image.NewRGBA(image.Rect(0, 0, width, height))
+
+	// Run the engine or any other processes to fill the framebuffer
 	go RunEngine(sceneImage)
 
-	// Create a new Image object in JavaScript.
-	// img := document.Call("createElement", "img")
-	// img.Set("src", "assets/redstone_block.png") // Replace with your actual image URL
-
-	// Function to render the image continuously.
+	// Rendering loop to continuously update the canvas
 	var renderLoop js.Func
 	renderLoop = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-		// Request the next frame.
-		// fmt.Println("renderLoop")
+		// Call the drawFrame function, passing the current canvas size
 		drawFrame(sceneImage, width, height, ctx)
 		js.Global().Call("requestAnimationFrame", renderLoop)
 		return nil
 	})
 
-	// // On image load, draw it onto the canvas.
-	// img.Set("onload", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-	// 	width := img.Get("width").Int()
-	// 	height := img.Get("height").Int()
-
-	// 	// Set canvas dimensions to match the image.
-	// 	canvas.Set("width", width)
-	// 	canvas.Set("height", height)
-
-	// 	// Draw the image onto the canvas.
-	// 	ctx.Call("drawImage", img, 0, 0, width, height)
-
-	// 	// Start the animation loop.
-	// 	js.Global().Call("requestAnimationFrame", renderLoop)
-	// 	return nil
-	// }))
-
+	// Start the render loop
 	js.Global().Call("requestAnimationFrame", renderLoop)
-
 	return nil
 }
 
@@ -89,6 +81,27 @@ func OutputSceneImage(img *image.RGBA) {
 func KeyboardEvents(scene *Scene) {
 	// do nothing on wasm
 	fmt.Println("WASM Keyboard Events")
+
+	onKeyDownMC := func(this js.Value, p []js.Value) interface{} {
+		fmt.Println("Key Down")
+		// Get the key code or key name
+		key := p[0].Get("key").String()
+		fmt.Printf("Key Down: %s\n", key)
+		HandleKeyPress(scene, key)
+		return nil
+	}
+
+	onKeyUpMC := func(this js.Value, p []js.Value) interface{} {
+		// Get the key code or key name
+		key := p[0].Get("key").String()
+		fmt.Printf("Key Up: %s\n", key)
+
+		return nil
+	}
+
+	// JavaScript function to capture keyboard events
+	js.Global().Set("onKeyDownMC", js.FuncOf(onKeyDownMC))
+	js.Global().Set("onKeyUpMC", js.FuncOf(onKeyUpMC))
 }
 
 //go:embed assets
@@ -129,5 +142,5 @@ func LoadGameSave() (GameSave, error) {
 }
 
 func WriteGameSame(gameSave GameSave) {
-	fmt.Println("WriteGameSame not implemented")
+	// fmt.Println("WriteGameSame not implemented")
 }

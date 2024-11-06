@@ -864,16 +864,18 @@ func DrawObjects(scene *Scene, img *image.RGBA, depthBuffer *DepthBuffer) {
 }
 
 func DrawScene(scene *Scene, img *image.RGBA) {
-	imageSize := 512
+	width := img.Bounds().Dx()
+	height := img.Bounds().Dy()
+	// imageSize := 512
 	// img := image.NewRGBA(image.Rect(0, 0, imageSize, imageSize))
 
-	depthBuffer := make(DepthBuffer, imageSize*imageSize)
+	depthBuffer := make(DepthBuffer, width*height)
 	for i := range depthBuffer {
 		depthBuffer[i] = 1e9 // A large value representing 'infinity'
 	}
 
-	for x := 0; x < imageSize; x++ {
-		for y := 0; y < imageSize; y++ {
+	for x := 0; x < width; x++ {
+		for y := 0; y < height; y++ {
 			img.Set(x, y, color.RGBA{122, 168, 253, 255})
 		}
 	}

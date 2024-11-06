@@ -4,9 +4,123 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MC-CA-GO</title>
+    <style>
+      @font-face {
+        font-family: 'CustomFont';
+        src: url('core/assets/CascadiaMono.ttf') format('truetype');
+        font-weight: normal;
+        font-style: normal;
+      }
+
+      /* Remove padding and margin for all elements */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: 'CustomFont', sans-serif;
+      }
+
+      /* Ensure that the canvas fills the entire page */
+      html,
+      body {
+        height: 100%;
+      }
+
+      body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background-color: rgb(191, 213, 253);
+      }
+
+      canvas {
+        background-color: rgb(153, 189, 255);
+        width: 100%;
+        height: 100%;
+      }
+
+      /* Icon to trigger control container */
+      .controls-icon {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        width: 40px;
+        height: 40px;
+        background-color: #007bff;
+        color: white;
+        font-size: 20px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border-radius: 50%;
+        cursor: pointer;
+        z-index: 10;
+      }
+
+      /* Container that holds the control options */
+      .controls-container {
+        display: none;
+        position: absolute;
+        top: 60px;
+        right: 20px;
+        background-color: #fff;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        width: 300px;
+        text-align: left;
+        z-index: 9;
+      }
+
+      /* Show the controls container when hovering over the icon */
+      .controls-icon:hover + .controls-container {
+        display: block;
+      }
+
+      h2 {
+        text-align: center;
+        color: #333;
+      }
+
+      ul {
+        list-style: none;
+        padding: 0;
+      }
+
+      li {
+        margin: 10px 0;
+      }
+
+      .key {
+        font-weight: bold;
+        color: #007bff;
+      }
+    </style>
   </head>
   <body>
-    <canvas id="canvas"></canvas>
+    <!-- Controls Icon (Clickable for showing controls) -->
+    <div class="controls-icon">?</div>
+
+    <!-- Controls Container (Hidden by default) -->
+    <div class="controls-container">
+      <h2>Game Controls</h2>
+      <ul>
+        <li><span class="key">Q</span>: Quit the game</li>
+        <li><span class="key">P</span>: Toggle Play/Pause</li>
+        <li><span class="key">O</span>: Step One Iteration</li>
+        <li><span class="key">R</span>: Reset the world</li>
+        <li><span class="key">W</span>: Move forward</li>
+        <li><span class="key">A</span>: Move left</li>
+        <li><span class="key">S</span>: Move backward</li>
+        <li><span class="key">D</span>: Move right</li>
+        <li><span class="key">E</span>: Move up</li>
+        <li><span class="key">C</span>: Move down</li>
+        <li><span class="key">Z</span>: Rotate left</li>
+        <li><span class="key">X</span>: Rotate right</li>
+      </ul>
+    </div>
+
+    <canvas id="canvas" tabindex="0"></canvas>
 
     <script src="wasm_exec.js"></script>
     <script>
@@ -19,6 +133,11 @@
         go.run(result.instance)
         // Call the Go function to load and display the image.
         loadAndDisplayImage()
+
+        document.getElementById('canvas').addEventListener('keydown', ev => {
+          // console.log('Key was pressed')
+          onKeyDownMC(ev)
+        })
       })
     </script>
   </body>

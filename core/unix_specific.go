@@ -26,8 +26,6 @@ func KeyboardEvents(scene *Scene) {
 
 	fmt.Println("Listening for keyboard inputs. Press 'q' to quit.")
 
-	camera := &scene.Camera
-
 	for {
 		// Read key press
 		key, _, err := keyboard.GetKey()
@@ -35,48 +33,7 @@ func KeyboardEvents(scene *Scene) {
 			fmt.Println("Error reading key:", err)
 			break
 		}
-		delta := 0.5
-		rotation := DegToRad(15)
-		// Handle key press
-		switch key {
-		case 'q':
-			fmt.Println("Exiting...")
-			scene.GameState = Quit
-		case 'p':
-			if scene.GameState == Paused {
-				scene.GameState = Playing
-			} else if scene.GameState == Playing {
-				scene.GameState = Paused
-			}
-		case 'o':
-			if scene.GameState == Paused {
-				scene.GameState = Pausing
-			} else if scene.GameState == Playing {
-				scene.GameState = Paused
-			}
-		case 'r':
-			scene.World = World{}
-			scene.Iteration = 0
-			createWorld(&scene.World)
-		case 'w':
-			camera.Position = camera.Position.Add(Point3D{0, 0, delta}.RotateY(-camera.Rotation.Y))
-		case 'a':
-			camera.Position = camera.Position.Add(Point3D{-delta, 0, 0}.RotateY(-camera.Rotation.Y))
-		case 's':
-			camera.Position = camera.Position.Add(Point3D{0, 0, -delta}.RotateY(-camera.Rotation.Y))
-		case 'd':
-			camera.Position = camera.Position.Add(Point3D{delta, 0, 0}.RotateY(-camera.Rotation.Y))
-		case 'e':
-			camera.Position = camera.Position.Add(Point3D{0, delta, 0})
-		case 'c':
-			camera.Position = camera.Position.Add(Point3D{0, -delta, 0})
-		case 'z':
-			camera.Rotation.Y = camera.Rotation.Y + rotation
-		case 'x':
-			camera.Rotation.Y = camera.Rotation.Y - rotation
-		default:
-			fmt.Println("Pressed:", key)
-		}
+		HandleKeyPress(scene, string(key))
 	}
 }
 

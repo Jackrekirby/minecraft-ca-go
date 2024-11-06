@@ -130,7 +130,7 @@ func RunEngine(sceneImage *image.RGBA) {
 		Position:    gameSave.CameraPosition,
 		Rotation:    gameSave.CameraRotation,
 		FOV:         90.0,
-		AspectRatio: 1.0,
+		AspectRatio: float64(sceneImage.Bounds().Dy()) / float64(sceneImage.Bounds().Dx()),
 		Near:        0.1,
 		Far:         100.0,
 	}
