@@ -11,6 +11,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"path/filepath"
 
 	"github.com/eiannone/keyboard"
 )
@@ -86,12 +87,52 @@ func RunEngineWrapper() {
 	RunEngine2(sceneImage, 1)
 }
 
-func LoadAsset(filename string) ([]byte, error) {
-	bytes, err := os.ReadFile(fmt.Sprintf("core/assets/%s", filename))
+func FindProjectRoot() (string, error) {
+	cwd, err := os.Getwd()
 	if err != nil {
-		fmt.Printf("Failed to read asset '%s'\n", filename)
+		return "", err
+	}
+
+	for {
+		if _, err := os.Stat(filepath.Join(cwd, "go.mod")); err == nil {
+			return cwd, nil
+		}
+
+		parent := filepath.Dir(cwd)
+		if parent == cwd { // Reached the root directory
+			return "", fmt.Errorf("go.mod not found in any parent directory")
+		}
+
+		cwd = parent
+	}
+}
+
+func CreateProjectRelativePath(relPath string) string {
+	projectDir, err := FindProjectRoot()
+	if err != nil {
+		panic(fmt.Sprintf("Failed to find project dir %v\n", err))
+	}
+	absPath := filepath.Join(projectDir, relPath)
+	return absPath
+}
+
+func LoadAsset(filename string) ([]byte, error) {
+	relPath := fmt.Sprintf("core/assets/%s", filename)
+	absPath := CreateProjectRelativePath(relPath)
+
+	// Check if the file exists
+	if _, err := os.Stat(absPath); os.IsNotExist(err) {
+		fmt.Printf("Asset file does not exist: %s\n", absPath)
 		return nil, err
 	}
+
+	// Read the file content
+	bytes, err := os.ReadFile(absPath)
+	if err != nil {
+		fmt.Printf("Failed to read asset '%s': %v\n", absPath, err)
+		return nil, err
+	}
+
 	return bytes, nil
 }
 

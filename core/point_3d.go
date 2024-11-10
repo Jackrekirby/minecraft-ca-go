@@ -69,6 +69,21 @@ func DegToRad(degrees float64) float64 {
 	return degrees * math.Pi / 180
 }
 
+func RadToDeg(radians float64) float64 {
+	// Convert radians to degrees
+	deg := radians * 180 / math.Pi
+
+	// Clamp the degree value to the range [0, 360)
+	deg = math.Mod(deg, 360)
+
+	// Ensure the result is non-negative
+	if deg < 0 {
+		deg += 360
+	}
+
+	return deg
+}
+
 // RotateX returns a new Point3D rotated around the X-axis by the given angle (in radians)
 func (p Point3D) RotateX(angle float64) Point3D {
 	y := p.Y*math.Cos(angle) - p.Z*math.Sin(angle)

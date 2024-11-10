@@ -10,6 +10,8 @@ import (
 	"io/fs"
 	"syscall/js"
 	"time"
+
+	"golang.org/x/image/draw"
 )
 
 func drawFrame(frameBuffer *image.RGBA, width, height int, ctx js.Value) {
@@ -129,10 +131,10 @@ func runProgram2Inner() {
 		}
 	}
 
-	jsData := js.Global().Get("Uint8ClampedArray").New(len(sceneImage.Pix))
-	js.CopyBytesToJS(jsData, sceneImage.Pix)
+	jsData := js.Global().Get("Uint8ClampedArray").New(screenWidth * screenHeight * 4)
+	js.CopyBytesToJS(jsData, scaleImage(*sceneImage, float64(scale), draw.NearestNeighbor).Pix)
 
-	sceneImageData := js.Global().Get("ImageData").New(jsData, width, height)
+	sceneImageData := js.Global().Get("ImageData").New(jsData, screenWidth, screenHeight)
 
 	outputSceneImage := func(img *image.RGBA) {
 		// drawFrame(img, screenWidth, screenHeight, ctx)

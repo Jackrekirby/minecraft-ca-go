@@ -1,6 +1,11 @@
+//go:build !js && !wasm
+// +build !js,!wasm
+
 package core
 
 import (
+	"fmt"
+	"image"
 	"testing"
 	"time"
 )
@@ -21,4 +26,34 @@ func BenchmarkNanotime(b *testing.B) {
 		elapsed := nanotime() - startTime
 		totalDuration += elapsed
 	}
+}
+
+func BenchmarkDrawTriangle3D(b *testing.B) {
+	width, height := 512, 512
+	sceneImage := image.NewRGBA(image.Rect(0, 0, width, height))
+	depthBuffer := make(DepthBuffer, width*height)
+	clearDepthBuffer(&depthBuffer)
+	texImage, err := loadImage("crafting_table_front.png")
+	if err != nil {
+		panic(fmt.Sprintf("failed to load texture: %v", err))
+	}
+	texImageRGBA := ImageToRGBA(texImage)
+	camera := Camera{
+		Position:    Point3D{0.5, 0.5, 1},
+		Rotation:    Point3D{0, DegToRad(180), 0},
+		FOV:         90.0,
+		AspectRatio: 1.0,
+		Near:        0.1,
+		Far:         100.0,
+	}
+	clr := Red.ToRGBA()
+	for i := 0; i < b.N; i++ {
+		DrawTriangle3D(
+			Vertex{Point3D{0, 0, 0}, 16, 16},
+			Vertex{Point3D{1, 0, 0}, 0, 16},
+			Vertex{Point3D{1, 1, 0}, 0, 0},
+			camera, sceneImage, clr, &depthBuffer, texImageRGBA,
+		)
+	}
+	SaveImage(sceneImage, CreateProjectRelativePath("output/benchmark.png"))
 }

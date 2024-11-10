@@ -380,6 +380,12 @@ func denormaliseCuboidUVs(tilemap *Tilemap, uvs [][4][2]float64) [][4][2]float64
 }
 
 func CreateCuboidUVs(u, v, du, dv float64, texture string, scene *Scene) [][4][2]float64 {
+	k := 0.01 // prevent floating point error
+	u += k
+	v += k
+	du -= 2 * k
+	dv -= 2 * k
+
 	meta := scene.Tilemap.Metas[texture]
 	w := float64(scene.Tilemap.Image.Bounds().Dx())
 	h := float64(scene.Tilemap.Image.Bounds().Dy())
@@ -880,18 +886,24 @@ func DrawDebugInformation(scene *Scene, img *image.RGBA) {
 			scene.GameState.String(),
 		), Cyan.ToRGBA(), scene.FontFace)
 
-	DrawText(img, 4, fontSize*3, fmt.Sprintf("XYZ: %.1f, %.1f, %.1f", scene.Camera.Position.X, scene.Camera.Position.Y, scene.Camera.Position.Z), Cyan.ToRGBA(), scene.FontFace)
+	DrawText(img, 4, fontSize*3, fmt.Sprintf(
+		"XYZ: %.1f %.1f %.1f, RY: %.1f",
+		scene.Camera.Position.X,
+		scene.Camera.Position.Y,
+		scene.Camera.Position.Z,
+		RadToDeg(scene.Camera.Rotation.Y),
+	), Cyan.ToRGBA(), scene.FontFace)
 }
 
-func DrawTestTriangles() {
-	// k := 10.0
-	// //front
-	// DrawTriangle3D(
-	// 	Vertex{Point3D{0, 0, 0}, 0, 0},
-	// 	Vertex{Point3D{k, 0, 0}, 16, 0},
-	// 	Vertex{Point3D{k, k, 0}, 16, 16},
-	// 	scene.Camera, img, Red.ToRGBA(), &depthBuffer, &scene.Tilemap.Image,
-	// )
+func DrawTestTriangles(scene *Scene, img *image.RGBA, depthBuffer *DepthBuffer) {
+	k := 1.0
+	//front
+	DrawTriangle3D(
+		Vertex{Point3D{0, 0, 0}, 0, 0},
+		Vertex{Point3D{k, 0, 0}, 16, 0},
+		Vertex{Point3D{k, k, 0}, 16, 16},
+		scene.Camera, img, Red.ToRGBA(), depthBuffer, &scene.Tilemap.Image,
+	)
 
 	// DrawTriangle3D(
 	// 	Vertex{Point3D{0, 0, 0}, 0, 0},
@@ -939,6 +951,8 @@ func clearDepthBuffer(depthBuffer *DepthBuffer) {
 func DrawScene(scene *Scene, img *image.RGBA, depthBuffer *DepthBuffer) {
 	clearDepthBuffer(depthBuffer)
 	clearSceneImage(img)
+
+	// DrawTestTriangles(scene, img, depthBuffer)
 
 	DrawObjects(scene, img, depthBuffer)
 	DrawDebugInformation(scene, img)

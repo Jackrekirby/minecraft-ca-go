@@ -121,6 +121,7 @@ type Tilemap struct {
 // TextureMeta and Tilemap structs defined as before
 
 func GenerateTilemap(dir string, tileSize int) (*Tilemap, error) {
+	const doPad = false
 	files, err := LoadAssets()
 	if err != nil {
 		return nil, err
@@ -149,9 +150,14 @@ func GenerateTilemap(dir string, tileSize int) (*Tilemap, error) {
 		return nil, fmt.Errorf("no PNG files found in directory: %s", dir)
 	}
 
+	padWidth := 0
+	if doPad {
+		padWidth = 1
+	}
+
 	// Calculate dimensions for the tilemap with border
 	tilesPerDim := int(math.Ceil(math.Sqrt(float64(len(images)))))
-	tilemapSize := tilesPerDim * (tileSize + 2) // Each tile includes a 1-pixel border on each side
+	tilemapSize := tilesPerDim * (tileSize + 2*padWidth) // Each tile includes a 1-pixel border on each side
 
 	// Create a new tilemap image with adjusted size
 	agg_image := image.NewRGBA(image.Rect(0, 0, tilemapSize, tilemapSize))
@@ -159,32 +165,35 @@ func GenerateTilemap(dir string, tileSize int) (*Tilemap, error) {
 	// Draw each image into the tilemap and calculate UV coordinates
 	for i, img := range images {
 		// Calculate destination rectangle with border margin
-		x := (i%tilesPerDim)*(tileSize+2) + 1 // Leave 1-pixel margin for the border
-		y := (i/tilesPerDim)*(tileSize+2) + 1
+
+		x := (i%tilesPerDim)*(tileSize+2*padWidth) + padWidth // Leave 1-pixel margin for the border
+		y := (i/tilesPerDim)*(tileSize+2*padWidth) + padWidth
 		dstRect := image.Rect(x, y, x+tileSize, y+tileSize)
 
 		// Draw the tile itself
 		draw.Draw(agg_image, dstRect, img, image.Point{0, 0}, draw.Over)
 
-		// Fill the border pixels around each tile
-		for bx := 0; bx < tileSize; bx++ {
-			// Top border
-			agg_image.Set(x+bx, y-1, img.At(bx, 0))
-			// Bottom border
-			agg_image.Set(x+bx, y+tileSize, img.At(bx, tileSize-1))
-		}
-		for by := 0; by < tileSize; by++ {
-			// Left border
-			agg_image.Set(x-1, y+by, img.At(0, by))
-			// Right border
-			agg_image.Set(x+tileSize, y+by, img.At(tileSize-1, by))
-		}
+		if doPad {
+			// Fill the border pixels around each tile
+			for bx := 0; bx < tileSize; bx++ {
+				// Top border
+				agg_image.Set(x+bx, y-1, img.At(bx, 0))
+				// Bottom border
+				agg_image.Set(x+bx, y+tileSize, img.At(bx, tileSize-1))
+			}
+			for by := 0; by < tileSize; by++ {
+				// Left border
+				agg_image.Set(x-1, y+by, img.At(0, by))
+				// Right border
+				agg_image.Set(x+tileSize, y+by, img.At(tileSize-1, by))
+			}
 
-		// Fill corners of the border with neighboring pixel colors
-		agg_image.Set(x-1, y-1, img.At(0, 0))                                 // Top-left corner
-		agg_image.Set(x+tileSize, y-1, img.At(tileSize-1, 0))                 // Top-right corner
-		agg_image.Set(x-1, y+tileSize, img.At(0, tileSize-1))                 // Bottom-left corner
-		agg_image.Set(x+tileSize, y+tileSize, img.At(tileSize-1, tileSize-1)) // Bottom-right corner
+			// Fill corners of the border with neighboring pixel colors
+			agg_image.Set(x-1, y-1, img.At(0, 0))                                 // Top-left corner
+			agg_image.Set(x+tileSize, y-1, img.At(tileSize-1, 0))                 // Top-right corner
+			agg_image.Set(x-1, y+tileSize, img.At(0, tileSize-1))                 // Bottom-left corner
+			agg_image.Set(x+tileSize, y+tileSize, img.At(tileSize-1, tileSize-1)) // Bottom-right corner
+		}
 
 		// Calculate normalized UV coordinates
 		u := float64(x) / float64(tilemapSize)

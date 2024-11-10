@@ -24,6 +24,10 @@ Controls on window are done via the terminal using:
 
 ## Profling
 
+`go test -bench BenchmarkDrawTriangle3D project_two/core -cpuprofile cpu.prof`
+
+`go test -bench ^BenchmarkDrawTriangle3D$ project_two/core -benchmem -run=^$ -cpuprofile cpu.prof -trace trace.out`
+
 `go test -bench=. -cpuprofile=cpu.out`
 
 `curl -o cpu.prof http://localhost:6060/debug/pprof/profile?seconds=5`
@@ -42,9 +46,9 @@ https://github.com/markfarnan/go-canvas
 ### General
 
 - [x] Add compilation to WASM
-- [ ] Add build scripts
-- [ ] Add build instructions
-- [ ] Add task list
+- [x] Add build scripts
+- [x] Add build instructions
+- [x] Add task list
 
 ### Game
 
@@ -64,6 +68,7 @@ https://github.com/markfarnan/go-canvas
 - [x] Only allocate image date in JS once
 - [x] Use Go's internal nanotime over time.Now()
 - [x] Avoid image.Set, goto underlying pixels or use SetRGBA
+- [ ] Improve scaling performance
 
 ### Blocks
 
@@ -103,9 +108,9 @@ https://github.com/markfarnan/go-canvas
 - [x] Make texture account for perspective
 - [ ] Support OBJ format
 - [ ] Add welcome page
-- [ ] Support scene scaling
-- [ ] Fix texture leakage
+- [x] Support scene scaling
+- [x] Fix texture leakage
 - [ ] Add model viewer & builder
-- [ ] Investigate async vs basic gameloop for performance
-- [ ] Scale text with image size
-- [ ] Automatically resize on window rescale
+- [x] Investigate async vs basic gameloop for performance
+- [x] Scale text with image size
+- [x] Automatically resize on window rescale

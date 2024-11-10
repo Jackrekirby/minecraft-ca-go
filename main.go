@@ -4,21 +4,30 @@
 package main
 
 import (
-	"log"
+	"fmt"
 	"net/http"
 	_ "net/http/pprof"
 	"project_two/core"
+	"time"
 )
 
 func profile() {
-	// Start a pprof server in a separate goroutine
+	// Start the pprof server in a separate goroutine
 	go func() {
-		log.Println(http.ListenAndServe("localhost:6060", nil))
+		fmt.Println("Starting pprof server at http://localhost:6060")
+		if err := http.ListenAndServe("localhost:6060", nil); err != nil {
+			fmt.Printf("Error starting pprof server: %v\n", err)
+		}
 	}()
+
+	// Example workload to keep the application running
+	for {
+		fmt.Println("Application running...")
+		time.Sleep(2 * time.Second)
+	}
 }
 
 func main() {
-	go profile()
+	//profile()
 	core.RunEngineWrapper()
-
 }
