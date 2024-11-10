@@ -15,6 +15,37 @@ import (
 	"github.com/eiannone/keyboard"
 )
 
+type KeyboardManager struct {
+	scene *Scene
+}
+
+// Initialise the keyboard manager
+func (km *KeyboardManager) Initialise(scene *Scene) {
+	// Open the keyboard
+	err := keyboard.Open()
+	if err != nil {
+		panic(fmt.Sprintf("error opening keyboard: %v", err))
+	}
+
+	fmt.Println("Keyboard manager initialised. Press 'q' to quit.")
+}
+
+// Update method to handle keyboard events
+func (km *KeyboardManager) Update() {
+	key, _, err := keyboard.GetKey()
+	if err != nil {
+		fmt.Println("Error reading key:", err)
+		return
+	}
+	HandleKeyPress(km.scene, string(key))
+}
+
+// Clean up resources (optional method)
+func (km *KeyboardManager) Destroy() {
+	keyboard.Close()
+	fmt.Println("Keyboard manager closed.")
+}
+
 func KeyboardEvents(scene *Scene) {
 	// Open the keyboard
 	err := keyboard.Open()
@@ -52,7 +83,7 @@ func OutputSceneImage(img *image.RGBA) {
 func RunEngineWrapper() {
 	imageSize := 512
 	sceneImage := image.NewRGBA(image.Rect(0, 0, imageSize, imageSize))
-	RunEngine(sceneImage)
+	RunEngine2(sceneImage, 1)
 }
 
 func LoadAsset(filename string) ([]byte, error) {

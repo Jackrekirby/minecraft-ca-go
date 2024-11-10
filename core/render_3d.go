@@ -634,9 +634,9 @@ func renderFlatBottomTriangle(img *image.RGBA, texture *image.RGBA, v [3]Vertex2
 				clr := getUVColor(u, vv, depth, texture)
 				// img.Set(x, y, clr)
 
-				currentColor := img.RGBAAt(x, y)
-				newColor := CombineColors(clr, currentColor)
-				img.Set(x, y, newColor)
+				// currentColor := img.RGBAAt(x, y)
+				// newColor := CombineColors(clr, currentColor)
+				img.SetRGBA(x, y, clr)
 			}
 		}
 	}
@@ -738,9 +738,9 @@ func renderFlatTopTriangle(img *image.RGBA, texture *image.RGBA, v [3]Vertex2, d
 			if depth < (*depthBuffer)[dbi] {
 				(*depthBuffer)[dbi] = depth
 				clr := getUVColor(u, vv, depth, texture)
-				currentColor := img.RGBAAt(x, y)
-				newColor := CombineColors(clr, currentColor)
-				img.Set(x, y, newColor)
+				// currentColor := img.RGBAAt(x, y)
+				// newColor := CombineColors(clr, currentColor)
+				img.SetRGBA(x, y, clr)
 			}
 		}
 	}
@@ -863,23 +863,27 @@ func DrawObjects(scene *Scene, img *image.RGBA, depthBuffer *DepthBuffer) {
 	}
 }
 
-func DrawScene(scene *Scene, img *image.RGBA) {
-	width := img.Bounds().Dx()
-	height := img.Bounds().Dy()
-	// imageSize := 512
-	// img := image.NewRGBA(image.Rect(0, 0, imageSize, imageSize))
+func DrawDebugInformation(scene *Scene, img *image.RGBA) {
+	fontSize := Int26_6ToInt(scene.FontFace.Metrics().Height)
+	DrawText(img, 4, fontSize,
+		fmt.Sprintf("I: %d, U/I %d, sU/I %d, sI/I %d",
+			scene.Iteration,
+			scene.NumBlockUpdatesInStep,
+			scene.NumBlockSubUpdatesInStep,
+			scene.NumBlockSubUpdateIterationsInStep,
+		), Cyan.ToRGBA(), scene.FontFace)
 
-	depthBuffer := make(DepthBuffer, width*height)
-	for i := range depthBuffer {
-		depthBuffer[i] = 1e9 // A large value representing 'infinity'
-	}
+	DrawText(img, 4, fontSize*2,
+		fmt.Sprintf("F/S: %d, I/S %d, S: %s",
+			scene.RecordedFramesPerSecond,
+			scene.RecordedStepsPerSecond,
+			scene.GameState.String(),
+		), Cyan.ToRGBA(), scene.FontFace)
 
-	for x := 0; x < width; x++ {
-		for y := 0; y < height; y++ {
-			img.Set(x, y, color.RGBA{122, 168, 253, 255})
-		}
-	}
+	DrawText(img, 4, fontSize*3, fmt.Sprintf("XYZ: %.1f, %.1f, %.1f", scene.Camera.Position.X, scene.Camera.Position.Y, scene.Camera.Position.Z), Cyan.ToRGBA(), scene.FontFace)
+}
 
+func DrawTestTriangles() {
 	// k := 10.0
 	// //front
 	// DrawTriangle3D(
@@ -908,35 +912,34 @@ func DrawScene(scene *Scene, img *image.RGBA) {
 	// // right
 	// DrawTriangle3D(Point3D{k, 0, 0}, Point3D{k, 0, k}, Point3D{k, k, k}, scene.Camera, img, Cyan.ToRGBA(), &depthBuffer)
 	// DrawTriangle3D(Point3D{k, 0, 0}, Point3D{k, k, k}, Point3D{k, k, 0}, scene.Camera, img, Blue.ToRGBA(), &depthBuffer)
+}
 
-	DrawObjects(scene, img, &depthBuffer)
+func clearSceneImage(img *image.RGBA) {
+	width, height := img.Bounds().Dx(), img.Bounds().Dy()
+	color := color.RGBA{122, 168, 253, 255}
+	pxCount := width * height
+	// Directly modify the pixel array
+	for i := 0; i < pxCount; i++ {
+		// Calculate the pixel's starting index in the Pix slice (4 bytes per pixel)
+		offset := i * 4
+		// Set the pixel color (RGBA)
+		img.Pix[offset] = color.R   // Red
+		img.Pix[offset+1] = color.G // Green
+		img.Pix[offset+2] = color.B // Blue
+		img.Pix[offset+3] = color.A // Alpha
+	}
+}
 
-	fontSize := Int26_6ToInt(scene.FontFace.Metrics().Height)
-	DrawText(img, 4, fontSize,
-		fmt.Sprintf("I: %d, U/I %d, sU/I %d, sI/I %d",
-			scene.Iteration,
-			scene.NumBlockUpdatesInStep,
-			scene.NumBlockSubUpdatesInStep,
-			scene.NumBlockSubUpdateIterationsInStep,
-		), Cyan.ToRGBA(), scene.FontFace)
+func clearDepthBuffer(depthBuffer *DepthBuffer) {
+	for i := range *depthBuffer {
+		(*depthBuffer)[i] = 1e9 // A large value representing 'infinity'
+	}
+}
 
-	DrawText(img, 4, fontSize*2,
-		fmt.Sprintf("F/S: %d, I/S %d, S: %s",
-			scene.RecordedFramesPerSecond,
-			scene.RecordedStepsPerSecond,
-			scene.GameState.String(),
-		), Cyan.ToRGBA(), scene.FontFace)
+func DrawScene(scene *Scene, img *image.RGBA, depthBuffer *DepthBuffer) {
+	clearDepthBuffer(depthBuffer)
+	clearSceneImage(img)
 
-	DrawText(img, 4, fontSize*3, fmt.Sprintf("XYZ: %.1f, %.1f, %.1f", scene.Camera.Position.X, scene.Camera.Position.Y, scene.Camera.Position.Z), Cyan.ToRGBA(), scene.FontFace)
-
-	// Create the output file
-	// file, err := os.Create("output/scene.png")
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// defer file.Close()
-
-	// if err := png.Encode(file, img); err != nil {
-	// 	panic(err)
-	// }
+	DrawObjects(scene, img, depthBuffer)
+	DrawDebugInformation(scene, img)
 }

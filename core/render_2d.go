@@ -93,14 +93,14 @@ func loadImage(filePath string) (image.Image, error) {
 	return img, nil
 }
 
-func scaleImage(original image.Image, multiplier float64, interpolator draw.Interpolator) image.Image {
+func scaleImage(original image.RGBA, multiplier float64, interpolator draw.Interpolator) *image.RGBA {
 	// Calculate new dimensions
 	newWidth := int(float64(original.Bounds().Dx()) * multiplier)
 	newHeight := int(float64(original.Bounds().Dy()) * multiplier)
 	scaledImage := image.NewRGBA(image.Rect(0, 0, newWidth, newHeight))
 
 	// Draw the original image into the new scaled image
-	interpolator.Scale(scaledImage, scaledImage.Rect, original, original.Bounds(), draw.Over, nil)
+	interpolator.Scale(scaledImage, scaledImage.Rect, &original, original.Bounds(), draw.Over, nil)
 
 	return scaledImage
 }
@@ -211,56 +211,56 @@ func SaveImage(img image.Image, path string) error {
 	return png.Encode(file, img)
 }
 
-func DrawWorld(worldSize int, imageNames []string) {
-	blockSize := 32 // in pixels
-	imageSize := worldSize*blockSize + 1
+// func DrawWorld(worldSize int, imageNames []string) {
+// 	blockSize := 32 // in pixels
+// 	imageSize := worldSize*blockSize + 1
 
-	img := image.NewRGBA(image.Rect(0, 0, imageSize, imageSize))
+// 	img := image.NewRGBA(image.Rect(0, 0, imageSize, imageSize))
 
-	backgroundColor := color.RGBA{18, 91, 167, 255}
-	lineColor := color.RGBA{255, 255, 255, 255}
+// 	backgroundColor := color.RGBA{18, 91, 167, 255}
+// 	lineColor := color.RGBA{255, 255, 255, 255}
 
-	for y := 0; y <= imageSize; y++ {
-		for x := 0; x < imageSize; x++ {
-			img.Set(x, y, backgroundColor)
-		}
-	}
+// 	for y := 0; y <= imageSize; y++ {
+// 		for x := 0; x < imageSize; x++ {
+// 			img.Set(x, y, backgroundColor)
+// 		}
+// 	}
 
-	for y := 0; y <= worldSize; y++ {
-		for x := 0; x < imageSize; x++ {
-			img.Set(x, (worldSize*blockSize)-(y*blockSize), lineColor)
-		}
-	}
+// 	for y := 0; y <= worldSize; y++ {
+// 		for x := 0; x < imageSize; x++ {
+// 			img.Set(x, (worldSize*blockSize)-(y*blockSize), lineColor)
+// 		}
+// 	}
 
-	for x := 0; x <= worldSize; x++ {
-		for y := 0; y < imageSize; y++ {
-			img.Set((worldSize*blockSize)-(x*blockSize), y, lineColor)
-		}
-	}
+// 	for x := 0; x <= worldSize; x++ {
+// 		for y := 0; y < imageSize; y++ {
+// 			img.Set((worldSize*blockSize)-(x*blockSize), y, lineColor)
+// 		}
+// 	}
 
-	// Load the tile image
-	tileImage, err := loadImage("assets/test.png") // Change to your tile image path
-	if err != nil {
-		panic(err)
-	}
+// 	// Load the tile image
+// 	tileImage, err := loadImage("assets/test.png") // Change to your tile image path
+// 	if err != nil {
+// 		panic(err)
+// 	}
 
-	scaledTileImage := scaleImage(tileImage, 2, draw.NearestNeighbor)
+// 	scaledTileImage := scaleImage(tileImage, 2, draw.NearestNeighbor)
 
-	// Draw the tile image on each block in the grid
-	for y := 0; y < worldSize; y++ {
-		for x := 0; x < worldSize; x++ {
-			dstRect := image.Rect(x*blockSize, y*blockSize, (x+1)*blockSize, (y+1)*blockSize)
-			draw.Draw(img, dstRect, scaledTileImage, image.Point{0, 0}, draw.Over)
-		}
-	}
+// 	// Draw the tile image on each block in the grid
+// 	for y := 0; y < worldSize; y++ {
+// 		for x := 0; x < worldSize; x++ {
+// 			dstRect := image.Rect(x*blockSize, y*blockSize, (x+1)*blockSize, (y+1)*blockSize)
+// 			draw.Draw(img, dstRect, scaledTileImage, image.Point{0, 0}, draw.Over)
+// 		}
+// 	}
 
-	file, err := os.Create("world.png")
-	if err != nil {
-		panic(err)
-	}
-	defer file.Close()
+// 	file, err := os.Create("world.png")
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// 	defer file.Close()
 
-	if err := png.Encode(file, img); err != nil {
-		panic(err)
-	}
-}
+// 	if err := png.Encode(file, img); err != nil {
+// 		panic(err)
+// 	}
+// }

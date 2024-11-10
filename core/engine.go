@@ -5,6 +5,7 @@ import (
 	"image"
 	"time"
 
+	"golang.org/x/image/draw"
 	"golang.org/x/image/font"
 )
 
@@ -31,12 +32,12 @@ func ratePerSecondToDuration(rate int) time.Duration {
 	return time.Duration(1.0/float64(rate)*1000.0) * time.Millisecond
 }
 
-func runRenderLoop(scene *Scene, img *image.RGBA) {
+func runRenderLoop(scene *Scene, img *image.RGBA, scale int, depthBuffer *DepthBuffer) {
 	period := ratePerSecondToDuration(scene.FramesPerSecond)
 	for scene.GameState != Quit {
 		startTime := time.Now()
-		DrawScene(scene, img)
-		OutputSceneImage(img)
+		DrawScene(scene, img, depthBuffer)
+		OutputSceneImage(scaleImage(*img, float64(scale), draw.NearestNeighbor))
 		elapsedTime := time.Since(startTime)
 		scene.RecordedFramesPerSecond = int(1.0 / elapsedTime.Seconds())
 		sleepTime := period - elapsedTime
@@ -108,9 +109,13 @@ func runGameSave(scene *Scene) {
 	}
 }
 
-func RunEngine(sceneImage *image.RGBA) {
-	fmt.Println("Minecraft 3D Celluar Automata in Go")
+type SceneEvent interface {
+	Initialise(scene *Scene)
+	Update()
+	Destroy()
+}
 
+func InitialiseScene(scene *Scene, sceneImage *image.RGBA, scale int) {
 	gameSave, err := LoadGameSave()
 	if err != nil {
 		gameSave = GameSave{
@@ -118,25 +123,27 @@ func RunEngine(sceneImage *image.RGBA) {
 			CameraRotation: Point3D{X: DegToRad(0), Y: DegToRad(0), Z: DegToRad(0)},
 		}
 	}
-	scene := Scene{}
 
 	scene.GameState = Playing
 	scene.FramesPerSecond = 2
 	scene.StepsPerSecond = 2
 	scene.SubStepsPerSecond = 0
 
+	width := sceneImage.Bounds().Dx()
+	height := sceneImage.Bounds().Dy()
+
 	scene.World = World{}
 	scene.Camera = Camera{
 		Position:    gameSave.CameraPosition,
 		Rotation:    gameSave.CameraRotation,
 		FOV:         90.0,
-		AspectRatio: float64(sceneImage.Bounds().Dy()) / float64(sceneImage.Bounds().Dx()),
+		AspectRatio: float64(height) / float64(width),
 		Near:        0.1,
 		Far:         100.0,
 	}
 
 	// load assets
-	fontFace, err := LoadTrueTypeFont("CascadiaMono.ttf", 18)
+	fontFace, err := LoadTrueTypeFont("CascadiaMono.ttf", min(18.0, (18.0/512.0)*float64(width)))
 	if err != nil {
 		panic(fmt.Sprintf("failed to load font: %v", err))
 	}
@@ -149,11 +156,19 @@ func RunEngine(sceneImage *image.RGBA) {
 	SaveImage(&tilemap.Image, "output/tilemap.png")
 	// fmt.Println(tilemap.Metas)
 	scene.Tilemap = *tilemap
+}
 
-	// createWorld(&scene.World)
+func RunEngine(sceneImage *image.RGBA, scale int) {
+	fmt.Println("Minecraft 3D Celluar Automata in Go")
+
+	scene := Scene{}
+	InitialiseScene(&scene, sceneImage, scale)
+
+	width, height := sceneImage.Bounds().Dx(), sceneImage.Bounds().Dy()
+	depthBuffer := make(DepthBuffer, width*height)
 
 	go KeyboardEvents(&scene)
-	go runRenderLoop(&scene, sceneImage)
+	go runRenderLoop(&scene, sceneImage, scale, &depthBuffer)
 	go runGameSave(&scene)
 	runGameLoop(&scene)
 }

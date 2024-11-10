@@ -35,6 +35,8 @@ Controls on window are done via the terminal using:
 
 https://stackademic.com/blog/profiling-go-applications-in-the-right-way-with-examples
 
+https://github.com/markfarnan/go-canvas
+
 ## Tasks
 
 ### General
@@ -53,6 +55,15 @@ https://stackademic.com/blog/profiling-go-applications-in-the-right-way-with-exa
 - [x] Add block subupdate game loop
 - [ ] Add saving of world to file
 - [ ] Add variable tick rate
+
+
+### Performance
+- [x] Investigate how to debug performance in Go
+- [x] New game loop minimising go routines and sleep
+- [x] Only allocate depth buffer once
+- [x] Only allocate image date in JS once
+- [x] Use Go's internal nanotime over time.Now()
+- [x] Avoid image.Set, goto underlying pixels or use SetRGBA
 
 ### Blocks
 
@@ -90,9 +101,11 @@ https://stackademic.com/blog/profiling-go-applications-in-the-right-way-with-exa
 - [x] Add textured triangle rendering
 - [x] Add depth buffer
 - [x] Make texture account for perspective
-- [ ] Investigate rendering performance
-- [ ] Improve rendering performance
 - [ ] Support OBJ format
 - [ ] Add welcome page
 - [ ] Support scene scaling
 - [ ] Fix texture leakage
+- [ ] Add model viewer & builder
+- [ ] Investigate async vs basic gameloop for performance
+- [ ] Scale text with image size
+- [ ] Automatically resize on window rescale

@@ -9,6 +9,7 @@ import (
 	"image"
 	"io/fs"
 	"syscall/js"
+	"time"
 )
 
 func drawFrame(frameBuffer *image.RGBA, width, height int, ctx js.Value) {
@@ -27,21 +28,22 @@ func MainWebAssembly() {
 	// This is required to prevent the Go runtime from exiting.
 	c := make(chan struct{}, 0)
 
-	// Call the function to load and display the image.
-	js.Global().Set("loadAndDisplayImage", js.FuncOf(loadAndDisplayImage))
+	js.Global().Set("runProgram", js.FuncOf(runProgram2))
 
 	// Wait indefinitely.
 	<-c
 }
 
-func loadAndDisplayImage(this js.Value, args []js.Value) interface{} {
+func runProgram(this js.Value, args []js.Value) interface{} {
 	document := js.Global().Get("document")
 	canvas := document.Call("getElementById", "canvas")
 	ctx := canvas.Call("getContext", "2d")
 
+	scale := 2
+
 	// Get the current screen size
-	screenWidth := js.Global().Get("window").Get("innerWidth").Int()
-	screenHeight := js.Global().Get("window").Get("innerHeight").Int()
+	screenWidth := js.Global().Get("window").Get("innerWidth").Int() / scale * scale
+	screenHeight := js.Global().Get("window").Get("innerHeight").Int() / scale * scale
 
 	// Choose the shorter dimension to maintain aspect ratio
 	// screenShortDim := min(screenWidth, screenHeight)
@@ -51,20 +53,20 @@ func loadAndDisplayImage(this js.Value, args []js.Value) interface{} {
 	canvas.Set("height", screenHeight)
 
 	// Create a new RGBA image buffer with the default resolution (can be adjusted if needed)
-	width := screenWidth
-	height := screenHeight
+	width := screenWidth / scale
+	height := screenHeight / scale
 
 	// Create a new RGBA image buffer
 	sceneImage := image.NewRGBA(image.Rect(0, 0, width, height))
 
 	// Run the engine or any other processes to fill the framebuffer
-	go RunEngine(sceneImage)
+	go RunEngine(sceneImage, scale)
 
 	// Rendering loop to continuously update the canvas
 	var renderLoop js.Func
 	renderLoop = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		// Call the drawFrame function, passing the current canvas size
-		drawFrame(sceneImage, width, height, ctx)
+		drawFrame(sceneImage, screenWidth, screenHeight, ctx)
 		js.Global().Call("requestAnimationFrame", renderLoop)
 		return nil
 	})
@@ -72,6 +74,105 @@ func loadAndDisplayImage(this js.Value, args []js.Value) interface{} {
 	// Start the render loop
 	js.Global().Call("requestAnimationFrame", renderLoop)
 	return nil
+}
+
+func runProgram2(_ js.Value, _ []js.Value) interface{} {
+	go runProgram2Inner()
+	return nil
+}
+
+func runProgram2Inner() {
+	document := js.Global().Get("document")
+	canvas := document.Call("getElementById", "canvas")
+	ctx := canvas.Call("getContext", "2d")
+
+	scale := 1
+
+	// Get the current screen size
+	screenWidth := js.Global().Get("window").Get("innerWidth").Int() / scale * scale
+	screenHeight := js.Global().Get("window").Get("innerHeight").Int() / scale * scale
+
+	// Choose the shorter dimension to maintain aspect ratio
+	// screenShortDim := min(screenWidth, screenHeight)
+
+	// Set canvas size to fill the smaller screen dimension
+	canvas.Set("width", screenWidth)
+	canvas.Set("height", screenHeight)
+
+	// Create a new RGBA image buffer with the default resolution (can be adjusted if needed)
+	width := screenWidth / scale
+	height := screenHeight / scale
+
+	// Create a new RGBA image buffer
+	sceneImage := image.NewRGBA(image.Rect(0, 0, width, height))
+
+	fmt.Println("sw, sh, w, h", screenWidth, screenHeight, width, height)
+
+	// Run the engine or any other processes to fill the framebuffer
+	// updateInterval := (1000000 / 10) * time.Microsecond
+	// renderInterval := (1000000 / 10) * time.Microsecond
+	sleepUndershoot := 5 * time.Millisecond
+
+	quit := make(chan struct{})
+
+	scene := Scene{}
+	InitialiseScene(&scene, sceneImage, scale)
+	go KeyboardEvents(&scene)
+	// keyboardManager := KeyboardManager{}
+	// keyboardManager.Initialise(&scene)
+
+	update := func(event *GameEvent, gameLoopManager *GameLoopManager) {
+		// keyboardManager.Update()
+		Update(&scene)
+		if scene.GameState == Quit {
+			close(quit)
+		}
+	}
+
+	jsData := js.Global().Get("Uint8ClampedArray").New(len(sceneImage.Pix))
+	js.CopyBytesToJS(jsData, sceneImage.Pix)
+
+	sceneImageData := js.Global().Get("ImageData").New(jsData, width, height)
+
+	outputSceneImage := func(img *image.RGBA) {
+		// drawFrame(img, screenWidth, screenHeight, ctx)
+		jsData := sceneImageData.Get("data")
+		js.CopyBytesToJS(jsData, img.Pix)
+		ctx.Call("putImageData", sceneImageData, 0, 0)
+	}
+
+	depthBuffer := make(DepthBuffer, width*height)
+
+	render := func(event *GameEvent, gameLoopManager *GameLoopManager) {
+		time.Sleep(1 * time.Millisecond)
+		Render(&scene, sceneImage, scale, &depthBuffer, outputSceneImage)
+	}
+
+	updateStatistics := func(event *GameEvent, gameLoopManager *GameLoopManager) {
+		renderEvent := &gameLoopManager.Events[1]
+		scene.RecordedFramesPerSecond = renderEvent.CallCount
+		renderEvent.CallCount = 0
+
+		updateEvent := &gameLoopManager.Events[0]
+		scene.RecordedStepsPerSecond = updateEvent.CallCount
+		updateEvent.CallCount = 0
+	}
+
+	g := GameLoopManager{}
+
+	events := [3]GameEvent{
+		CreateGameEvent("Update", (1000/10)*time.Millisecond, update),
+		CreateGameEvent("Render", (1_000_000/60)*time.Microsecond, render),
+		CreateGameEvent("Statistics", (1000/1)*time.Millisecond, updateStatistics),
+	}
+
+	g.Initialise(events, sleepUndershoot, quit)
+
+	g.Run()
+
+	// runStatistics := RunGameLoop(updateInterval, renderInterval, update, render, sleepUndershoot, quit, &scene)
+
+	// fmt.Println(runStatistics.String())
 }
 
 func OutputSceneImage(img *image.RGBA) {
@@ -102,6 +203,23 @@ func KeyboardEvents(scene *Scene) {
 	// JavaScript function to capture keyboard events
 	js.Global().Set("onKeyDownMC", js.FuncOf(onKeyDownMC))
 	js.Global().Set("onKeyUpMC", js.FuncOf(onKeyUpMC))
+}
+
+type KeyboardManager struct {
+	quitKey string
+}
+
+// Initialise the keyboard manager
+func (km *KeyboardManager) Initialise(scene *Scene) {
+	KeyboardEvents(scene)
+}
+
+// Update method to handle keyboard events
+func (km *KeyboardManager) Update() {
+}
+
+// Clean up resources (optional method)
+func (km *KeyboardManager) Destroy() {
 }
 
 //go:embed assets
