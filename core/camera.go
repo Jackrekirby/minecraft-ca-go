@@ -19,8 +19,8 @@ func (c *Camera) Convert3DTo2D(point Point3D) *Point2D {
 	// Translate the point by the camera position
 	p := point.
 		Subtract(c.Position).
-		RotateX(c.Rotation.X).
 		RotateY(c.Rotation.Y).
+		RotateX(c.Rotation.X).
 		RotateZ(c.Rotation.Z)
 
 	// Check if the point is outside the viewable range

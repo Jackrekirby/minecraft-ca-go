@@ -32,14 +32,14 @@ func (km *KeyboardManager) Initialise(scene *Scene) {
 }
 
 // Update method to handle keyboard events
-func (km *KeyboardManager) Update() {
-	key, _, err := keyboard.GetKey()
-	if err != nil {
-		fmt.Println("Error reading key:", err)
-		return
-	}
-	HandleKeyPress(km.scene, string(key))
-}
+// func (km *KeyboardManager) Update() {
+// 	key, _, err := keyboard.GetKey()
+// 	if err != nil {
+// 		fmt.Println("Error reading key:", err)
+// 		return
+// 	}
+// 	HandleKeyPress(km.scene, string(key))
+// }
 
 // Clean up resources (optional method)
 func (km *KeyboardManager) Destroy() {
@@ -65,7 +65,7 @@ func KeyboardEvents(scene *Scene) {
 			fmt.Println("Error reading key:", err)
 			break
 		}
-		HandleKeyPress(scene, string(key))
+		HandleKeyPress(scene, string(key), 0.5, DegToRad(5))
 	}
 }
 

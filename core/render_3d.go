@@ -887,11 +887,13 @@ func DrawDebugInformation(scene *Scene, img *image.RGBA) {
 		), Cyan.ToRGBA(), scene.FontFace)
 
 	DrawText(img, 4, fontSize*3, fmt.Sprintf(
-		"XYZ: %.1f %.1f %.1f, RY: %.1f",
+		"XYZ: %.1f %.1f %.1f, Rot: %.1f %.1f %.1f",
 		scene.Camera.Position.X,
 		scene.Camera.Position.Y,
 		scene.Camera.Position.Z,
+		RadToDeg(scene.Camera.Rotation.X),
 		RadToDeg(scene.Camera.Rotation.Y),
+		RadToDeg(scene.Camera.Rotation.Z),
 	), Cyan.ToRGBA(), scene.FontFace)
 }
 

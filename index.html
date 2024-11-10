@@ -124,6 +124,27 @@
 
     <script src="wasm_exec.js"></script>
     <script>
+      // document.addEventListener('mousemove', event => {
+      //   if (document.pointerLockElement !== null) {
+      //     const deltaX = event.movementX
+      //     const deltaY = event.movementY
+
+      //     // Use deltaX and deltaY to update your camera position
+      //     console.log(`Camera move: deltaX = ${deltaX}, deltaY = ${deltaY}`)
+      //   }
+      // })
+
+      // // Exit pointer lock with Escape key
+      // document.addEventListener('pointerlockchange', () => {
+      //   if (document.pointerLockElement === null) {
+      //     console.log('Pointer lock exited')
+      //   }
+      // })
+
+      // document.getElementById('canvas').addEventListener('click', () => {
+      //   document.body.requestPointerLock()
+      // })
+
       // Set up the Go WASM environment.
       const go = new Go()
       WebAssembly.instantiateStreaming(
@@ -134,10 +155,10 @@
         // Call the Go function to load and display the image.
         runProgram()
 
-        document.getElementById('canvas').addEventListener('keydown', ev => {
-          // console.log('Key was pressed')
-          onKeyDownMC(ev)
-        })
+        // document.getElementById('canvas').addEventListener('keydown', ev => {
+        //   // console.log('Key was pressed')
+        //   onKeyDownMC(ev)
+        // })
       })
     </script>
   </body>

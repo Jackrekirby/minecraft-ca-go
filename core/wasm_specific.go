@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"image"
 	"io/fs"
+	"math"
 	"syscall/js"
 	"time"
 
@@ -119,6 +120,11 @@ func runProgram2Inner() {
 
 	scene := Scene{}
 	InitialiseScene(&scene, sceneImage, scale)
+
+	mouse := Mouse{}
+	cleanupMouseListener := AddMouseListener(&scene, &mouse)
+	defer cleanupMouseListener()
+	// HandleMouseEvents(&scene, &mouse)
 	go KeyboardEvents(&scene)
 	// keyboardManager := KeyboardManager{}
 	// keyboardManager.Initialise(&scene)
@@ -181,30 +187,84 @@ func OutputSceneImage(img *image.RGBA) {
 	// do nothing on wasm
 }
 
+func HandleMouseEvents(scene *Scene, mouse *Mouse) {
+
+	rotationSpeed := 0.005 // Adjust this value for sensitivity
+	camera := &scene.Camera
+
+	// Update Yaw (Y axis rotation) based on horizontal mouse movement
+	camera.Rotation.Y -= float64(mouse.Dx) * rotationSpeed
+
+	// Calculate pitch (X axis rotation) based on vertical mouse movement
+	dPitch := float64(mouse.Dy) * rotationSpeed
+
+	// Update only the pitch (X axis rotation), without affecting roll (Z axis rotation)
+	camera.Rotation.X -= dPitch
+
+	// Ensure roll (Z axis rotation) remains unchanged
+	// camera.Rotation.Z = 0.0
+
+	// rotationSpeed := 0.005 // Adjust this value for sensitivity
+	// camera := &scene.Camera
+
+	// // Update Yaw (Y axis rotation) based on horizontal mouse movement
+	// camera.Rotation.Y -= float64(mouse.Dx) * rotationSpeed
+
+	// // Calculate pitch (X and Z axis rotation) based on vertical mouse movement
+	// dPitch := float64(mouse.Dy) * rotationSpeed
+
+	// // Distribute dPitch between X and Z axes based on current Y rotation (yaw)
+	// camera.Rotation.X -= dPitch * math.Cos(camera.Rotation.Y)
+	// camera.Rotation.Z -= dPitch * math.Sin(camera.Rotation.Y)
+
+	// Clamp camera X rotation to avoid flipping (e.g., -90 to +90 degrees)
+	if camera.Rotation.X > DegToRad(90) {
+		camera.Rotation.X = DegToRad(90)
+	}
+	if camera.Rotation.X < DegToRad(-90) {
+		camera.Rotation.X = DegToRad(-90)
+	}
+
+	// // Optional: Clamp Z rotation (if needed)
+	// if camera.Rotation.Z > DegToRad(90) {
+	// 	camera.Rotation.Z = DegToRad(90)
+	// }
+	// if camera.Rotation.Z < DegToRad(-90) {
+	// 	camera.Rotation.Z = DegToRad(-90)
+	// }
+
+	// Reset mouse deltas
+	mouse.Dx = 0
+	mouse.Dy = 0
+}
+
 func KeyboardEvents(scene *Scene) {
 	// do nothing on wasm
-	fmt.Println("WASM Keyboard Events")
+	// fmt.Println("WASM Keyboard Events")
 
 	onKeyDownMC := func(this js.Value, p []js.Value) interface{} {
-		fmt.Println("Key Down")
+		// fmt.Println("Key Down")
 		// Get the key code or key name
 		key := p[0].Get("key").String()
-		fmt.Printf("Key Down: %s\n", key)
-		HandleKeyPress(scene, key)
+		// fmt.Printf("Key Down: %s\n", key)
+		HandleKeyPress(scene, key, 0.3, DegToRad(5))
 		return nil
 	}
 
-	onKeyUpMC := func(this js.Value, p []js.Value) interface{} {
-		// Get the key code or key name
-		key := p[0].Get("key").String()
-		fmt.Printf("Key Up: %s\n", key)
+	// onKeyUpMC := func(this js.Value, p []js.Value) interface{} {
+	// 	// Get the key code or key name
+	// 	key := p[0].Get("key").String()
+	// 	fmt.Printf("Key Up: %s\n", key)
 
-		return nil
-	}
+	// 	return nil
+	// }
 
 	// JavaScript function to capture keyboard events
-	js.Global().Set("onKeyDownMC", js.FuncOf(onKeyDownMC))
-	js.Global().Set("onKeyUpMC", js.FuncOf(onKeyUpMC))
+	// js.Global().Set("onKeyDownMC", js.FuncOf(onKeyDownMC))
+
+	canvas := js.Global().Get("document").Call("getElementById", "canvas")
+	canvas.Call("addEventListener", "keydown", js.FuncOf(onKeyDownMC))
+	// js.Global().Set("onKeyUpMC", js.FuncOf(onKeyUpMC))
 }
 
 type KeyboardManager struct {
@@ -254,8 +314,8 @@ type GameSave struct {
 
 func LoadGameSave() (GameSave, error) {
 	var gameSave GameSave = GameSave{
-		CameraPosition: Point3D{X: 1.1988887394336163, Y: 5.5, Z: -4.806844720508948},
-		CameraRotation: Point3D{X: 0, Y: 6.021385919380435, Z: 0},
+		CameraPosition: Point3D{X: 2.0, Y: 5.0, Z: -5.0},
+		CameraRotation: Point3D{X: 0, Y: 0, Z: 0},
 	}
 
 	return gameSave, nil
@@ -263,4 +323,70 @@ func LoadGameSave() (GameSave, error) {
 
 func WriteGameSame(gameSave GameSave) {
 	// fmt.Println("WriteGameSame not implemented")
+}
+
+// MOUSE CONTROL
+
+func buildOnMouseMoveCallback(scene *Scene, mouse *Mouse) func(this js.Value, args []js.Value) any {
+	const maxDelta float64 = 30
+	callback := func(this js.Value, args []js.Value) any {
+		event := args[0]
+		if js.Global().Get("document").Get("pointerLockElement").Truthy() {
+			deltaX := event.Get("movementX").Int()
+			deltaY := event.Get("movementY").Int()
+
+			if math.Abs(float64(deltaX)) > maxDelta || math.Abs(float64(deltaY)) > maxDelta {
+				return nil
+			}
+
+			mouse.Dx = deltaX
+			mouse.Dy = deltaY
+
+			HandleMouseEvents(scene, mouse)
+
+			// Log the camera movement
+			// js.Global().Get("console").Call("log", "Camera move: deltaX =", deltaX, ", deltaY =", deltaY)
+		}
+		return nil
+	}
+	return callback
+}
+
+func onPointerLockChange(this js.Value, args []js.Value) any {
+	if js.Global().Get("document").Get("pointerLockElement").IsNull() {
+		js.Global().Get("console").Call("log", "Pointer lock exited")
+	}
+	return nil
+}
+
+func onClick(this js.Value, args []js.Value) any {
+	js.Global().Get("document").Get("body").Call("requestPointerLock")
+	return nil
+}
+
+type Mouse struct {
+	Dx int // pixels
+	Dy int // pixels
+}
+
+func AddMouseListener(scene *Scene, mouse *Mouse) func() {
+	// Create JavaScript event listeners
+	mouseMoveCallback := js.FuncOf(buildOnMouseMoveCallback(scene, mouse))
+	// pointerLockChangeCallback := js.FuncOf(onPointerLockChange)
+	clickCallback := js.FuncOf(onClick)
+
+	// Add the event listeners to the document
+	js.Global().Get("document").Call("addEventListener", "mousemove", mouseMoveCallback)
+	// js.Global().Get("document").Call("addEventListener", "pointerlockchange", pointerLockChangeCallback)
+
+	// Add click event listener to the canvas element
+	canvas := js.Global().Get("document").Call("getElementById", "canvas")
+	canvas.Call("addEventListener", "click", clickCallback)
+
+	// return cleanup function
+	return func() {
+		mouseMoveCallback.Release()
+		// pointerLockChangeCallback.Release()
+		clickCallback.Release()
+	}
 }

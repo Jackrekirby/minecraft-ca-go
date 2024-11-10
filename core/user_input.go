@@ -135,10 +135,10 @@ func ProcessUserInputs(iteration int, world *World) bool {
 	return hasAnyBlockUpdated
 }
 
-func HandleKeyPress(scene *Scene, key string) {
+func HandleKeyPress(scene *Scene, key string, moveDelta float64, rotDelta float64) {
 	camera := &scene.Camera
-	delta := 0.5
-	rotation := DegToRad(15)
+	// delta := 0.5
+	// rotation := DegToRad(15)
 	// Handle key press
 	switch key {
 	case "q":
@@ -161,21 +161,21 @@ func HandleKeyPress(scene *Scene, key string) {
 		scene.Iteration = 0
 		createWorld(&scene.World)
 	case "w":
-		camera.Position = camera.Position.Add(Point3D{0, 0, delta}.RotateY(-camera.Rotation.Y))
+		camera.Position = camera.Position.Add(Point3D{0, 0, moveDelta}.RotateY(-camera.Rotation.Y))
 	case "a":
-		camera.Position = camera.Position.Add(Point3D{-delta, 0, 0}.RotateY(-camera.Rotation.Y))
+		camera.Position = camera.Position.Add(Point3D{-moveDelta, 0, 0}.RotateY(-camera.Rotation.Y))
 	case "s":
-		camera.Position = camera.Position.Add(Point3D{0, 0, -delta}.RotateY(-camera.Rotation.Y))
+		camera.Position = camera.Position.Add(Point3D{0, 0, -moveDelta}.RotateY(-camera.Rotation.Y))
 	case "d":
-		camera.Position = camera.Position.Add(Point3D{delta, 0, 0}.RotateY(-camera.Rotation.Y))
+		camera.Position = camera.Position.Add(Point3D{moveDelta, 0, 0}.RotateY(-camera.Rotation.Y))
 	case "e":
-		camera.Position = camera.Position.Add(Point3D{0, delta, 0})
+		camera.Position = camera.Position.Add(Point3D{0, moveDelta, 0})
 	case "c":
-		camera.Position = camera.Position.Add(Point3D{0, -delta, 0})
+		camera.Position = camera.Position.Add(Point3D{0, -moveDelta, 0})
 	case "z":
-		camera.Rotation.Y = camera.Rotation.Y + rotation
+		camera.Rotation.Y = camera.Rotation.Y + rotDelta
 	case "x":
-		camera.Rotation.Y = camera.Rotation.Y - rotation
+		camera.Rotation.Y = camera.Rotation.Y - rotDelta
 	default:
 		fmt.Println("Pressed:", key)
 	}
