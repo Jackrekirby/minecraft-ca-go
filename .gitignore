@@ -2,6 +2,6 @@
 assets/
 save/
 *.png
-*.prof
+*.pprof
 *.out
 *.exe

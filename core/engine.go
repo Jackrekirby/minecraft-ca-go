@@ -15,7 +15,7 @@ type Scene struct {
 	Camera    Camera
 	World     World
 	// metrics
-	FramesPerSecond                   int
+	FramesPerSecond                   int // not being used anymore to set frame rate along with other vars
 	StepsPerSecond                    int
 	SubStepsPerSecond                 int
 	NumBlockUpdatesInStep             int
@@ -100,8 +100,8 @@ func runGameLoop(scene *Scene) {
 }
 
 func runGameSave(scene *Scene) {
-	period := ratePerSecondToDuration(5)
-	scene.Iteration = 0
+	period := ratePerSecondToDuration(1)
+	// scene.Iteration = 0
 	for scene.GameState != Quit {
 		gameSave := GameSave{CameraPosition: scene.Camera.Position, CameraRotation: scene.Camera.Rotation}
 		WriteGameSame(gameSave)

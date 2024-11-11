@@ -5,6 +5,8 @@ package core
 
 import (
 	"embed"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"image"
 	"io/fs"
@@ -109,7 +111,7 @@ func runProgram2Inner() {
 	// Create a new RGBA image buffer
 	sceneImage := image.NewRGBA(image.Rect(0, 0, width, height))
 
-	fmt.Println("sw, sh, w, h", screenWidth, screenHeight, width, height)
+	// fmt.Println("sw, sh, w, h", screenWidth, screenHeight, width, height)
 
 	// Run the engine or any other processes to fill the framebuffer
 	// updateInterval := (1000000 / 10) * time.Microsecond
@@ -126,6 +128,7 @@ func runProgram2Inner() {
 	defer cleanupMouseListener()
 	// HandleMouseEvents(&scene, &mouse)
 	go KeyboardEvents(&scene)
+	go runGameSave(&scene) // consider moving inside update
 	// keyboardManager := KeyboardManager{}
 	// keyboardManager.Initialise(&scene)
 
@@ -313,16 +316,13 @@ type GameSave struct {
 }
 
 func LoadGameSave() (GameSave, error) {
-	var gameSave GameSave = GameSave{
-		CameraPosition: Point3D{X: 2.0, Y: 5.0, Z: -5.0},
-		CameraRotation: Point3D{X: 0, Y: 0, Z: 0},
-	}
-
-	return gameSave, nil
+	var gameSave GameSave
+	err := ReadFromLocalStorage("game", &gameSave)
+	return gameSave, err
 }
 
 func WriteGameSame(gameSave GameSave) {
-	// fmt.Println("WriteGameSame not implemented")
+	WriteToLocalStorage("game", gameSave)
 }
 
 // MOUSE CONTROL
@@ -389,4 +389,68 @@ func AddMouseListener(scene *Scene, mouse *Mouse) func() {
 		// pointerLockChangeCallback.Release()
 		clickCallback.Release()
 	}
+}
+
+// Session Storage
+
+// WriteLocalStorage writes a byte array to localStorage using a given key.
+func WriteBytesToLocalStorage(key string, data []byte) {
+	// Convert byte array to a Base64-encoded string (JavaScript's localStorage can only store strings).
+	encoded := base64.StdEncoding.EncodeToString(data)
+
+	// Get the localStorage object.
+	localStorage := js.Global().Get("localStorage")
+	if !localStorage.Truthy() {
+		fmt.Println("localStorage is not available")
+		return
+	}
+
+	// Store the encoded data under the given key.
+	localStorage.Call("setItem", key, encoded)
+	// fmt.Println("Data written to localStorage:", key)
+}
+
+// ReadLocalStorage reads a byte array from localStorage using a given key.
+func ReadBytesFromLocalStorage(key string) ([]byte, error) {
+	// Get the localStorage object.
+	localStorage := js.Global().Get("localStorage")
+	if !localStorage.Truthy() {
+		return nil, fmt.Errorf("localStorage is not available")
+	}
+
+	// Retrieve the Base64-encoded string from localStorage.
+	item := localStorage.Call("getItem", key)
+	if item.IsNull() {
+		return nil, fmt.Errorf("no data found for key: %s", key)
+	}
+
+	// Decode the Base64 string to a byte array.
+	data, err := base64.StdEncoding.DecodeString(item.String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode data: %w", err)
+	}
+
+	return data, nil
+}
+
+func WriteToLocalStorage(key string, data any) {
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		panic(fmt.Sprintf("Error writing struct to JSON: %s", err))
+	}
+
+	WriteBytesToLocalStorage(key, jsonData)
+}
+
+func ReadFromLocalStorage(key string, data any) error {
+	rawData, err := ReadBytesFromLocalStorage(key)
+	if err != nil {
+		return fmt.Errorf("error reading session storage: %w", err)
+	}
+
+	err = json.Unmarshal(rawData, data)
+	if err != nil {
+		return fmt.Errorf("error reading JSON data: %w", err)
+	}
+	return nil
 }

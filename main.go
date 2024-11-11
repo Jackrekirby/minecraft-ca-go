@@ -29,5 +29,6 @@ func profile() {
 
 func main() {
 	//profile()
+	defer core.StartCPUProfile()()
 	core.RunEngineWrapper()
 }

@@ -48,6 +48,9 @@ func (km *KeyboardManager) Destroy() {
 }
 
 func KeyboardEvents(scene *Scene) {
+	if isCPUProfiling {
+		return
+	}
 	// Open the keyboard
 	err := keyboard.Open()
 	if err != nil {
@@ -70,6 +73,9 @@ func KeyboardEvents(scene *Scene) {
 }
 
 func OutputSceneImage(img *image.RGBA) {
+	if isCPUProfiling {
+		return
+	}
 	file, err := os.Create("output/scene.png")
 	if err != nil {
 		panic(err)

@@ -24,6 +24,8 @@ Controls on window are done via the terminal using:
 
 ## Profling
 
+`go tool pprof -http=":8080" cpu.pprof` (requires graphviz)
+
 `go test -bench BenchmarkDrawTriangle3D project_two/core -cpuprofile cpu.prof`
 
 `go test -bench ^BenchmarkDrawTriangle3D$ project_two/core -benchmem -run=^$ -cpuprofile cpu.prof -trace trace.out`
@@ -59,7 +61,7 @@ https://github.com/markfarnan/go-canvas
 - [x] Add block subupdate game loop
 - [ ] Add saving of world to file
 - [ ] Add variable tick rate
-
+- [x] Add saving of camera to file [WASM]
 
 ### Performance
 - [x] Investigate how to debug performance in Go
@@ -93,7 +95,7 @@ https://github.com/markfarnan/go-canvas
 - [x] Add camera rotation 
 - [x] Add input via terminal [Windows]
 - [x] Add statistics (fps, tps ...)
-- [ ] Add mouse camera movement [WASM]
+- [x] Add mouse camera movement [WASM]
 - [ ] Add place & destroy blocks
 - [ ] Add inventory system
 
@@ -114,3 +116,4 @@ https://github.com/markfarnan/go-canvas
 - [x] Investigate async vs basic gameloop for performance
 - [x] Scale text with image size
 - [x] Automatically resize on window rescale
+- [x] Fix depth / uv coordinates on camera pitching

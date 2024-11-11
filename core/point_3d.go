@@ -86,22 +86,22 @@ func RadToDeg(radians float64) float64 {
 
 // RotateX returns a new Point3D rotated around the X-axis by the given angle (in radians)
 func (p Point3D) RotateX(angle float64) Point3D {
-	y := p.Y*math.Cos(angle) - p.Z*math.Sin(angle)
-	z := p.Y*math.Sin(angle) + p.Z*math.Cos(angle)
+	y := p.Y*Cos(angle) - p.Z*Sin(angle)
+	z := p.Y*Sin(angle) + p.Z*Cos(angle)
 	return Point3D{X: p.X, Y: y, Z: z}
 }
 
 // RotateY returns a new Point3D rotated around the Y-axis by the given angle (in radians)
 func (p Point3D) RotateY(angle float64) Point3D {
-	x := p.X*math.Cos(angle) + p.Z*math.Sin(angle)
-	z := -p.X*math.Sin(angle) + p.Z*math.Cos(angle)
+	x := p.X*Cos(angle) + p.Z*Sin(angle)
+	z := -p.X*Sin(angle) + p.Z*Cos(angle)
 	return Point3D{X: x, Y: p.Y, Z: z}
 }
 
 // RotateZ returns a new Point3D rotated around the Z-axis by the given angle (in radians)
 func (p Point3D) RotateZ(angle float64) Point3D {
-	x := p.X*math.Cos(angle) - p.Y*math.Sin(angle)
-	y := p.X*math.Sin(angle) + p.Y*math.Cos(angle)
+	x := p.X*Cos(angle) - p.Y*Sin(angle)
+	y := p.X*Sin(angle) + p.Y*Cos(angle)
 	return Point3D{X: x, Y: y, Z: p.Z}
 }
 

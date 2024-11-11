@@ -59,11 +59,11 @@ func DrawLine(img *image.RGBA, p0, p1 Int_2D, col color.RGBA) {
 func calculateDepth(point Point3D, c Camera) float64 {
 	// should be returned by project point...
 	// Translate the point by the camera position
-	p := point.
-		Subtract(c.Position).
-		RotateX(c.Rotation.X).
-		RotateY(c.Rotation.Y).
-		RotateZ(c.Rotation.Z)
+	p := point. // transform order must match project point code
+			Subtract(c.Position).
+			RotateY(c.Rotation.Y).
+			RotateX(c.Rotation.X).
+			RotateZ(c.Rotation.Z)
 
 	// Perspective projection
 	q := c.Far / (c.Far - c.Near)
@@ -539,8 +539,8 @@ const TexturePerspective = true
 
 func getUVColor(u, v, depth float64, texture *image.RGBA) color.RGBA {
 	if DebugUV {
-		// r, g, b := HSVToRGB(float64(int(depth*80.0)%360), 1.0, 1.0)
-		// return color.RGBA{r, g, b, 255}
+		r, g, b := HSVToRGB(float64(int(depth*80.0)%360), 1.0, 1.0)
+		return color.RGBA{r, g, b, 255}
 		return color.RGBA{100 + uint8(u*255)%50, 100 + uint8(v*255)%50, 100, 255}
 		return color.RGBA{uint8(u * 255), uint8(v * 255), 0, 255}
 	} else {
@@ -627,6 +627,7 @@ func renderFlatBottomTriangle(img *image.RGBA, texture *image.RGBA, v [3]Vertex2
 			// vv = vv / invDepth
 
 			depth := d01 + t*(d02-d01)
+
 			u = u / ww
 			vv = vv / ww
 
@@ -808,7 +809,29 @@ func renderTriangle(img *image.RGBA, texture *image.RGBA, v [3]Vertex2, depthBuf
 	}
 }
 
+// assumes world of 16x16x16
+func Convert1DTo3D(i int) Point3D {
+	// Extract x, y, z using bit-shifting
+	x := i & 0xF        // Mask the lowest 4 bits
+	y := (i >> 4) & 0xF // Shift right by 4 bits and mask the next 4 bits
+	z := (i >> 8) & 0xF // Shift right by 8 bits and mask the next 4 bits
+
+	return Point3D{float64(x), float64(y), float64(z)}
+}
+
 func DrawObjects(scene *Scene, img *image.RGBA, depthBuffer *DepthBuffer) {
+	for i, block := range scene.World.Blocks {
+		rb, isRenderable := block.(WireRenderBlock)
+
+		if isRenderable {
+			for _, c := range rb.ToCuboids(scene) {
+				position := Convert1DTo3D(i) // generating a new cuboid is bad. mutate or move vertices dynamically inside function
+				movedCuboid := c.Move(position)
+				DrawFilledCuboid(movedCuboid, scene.Camera, img, depthBuffer, &scene.Tilemap)
+			}
+		}
+	}
+
 	// Calculate aspect ratio based on the image dimensions
 
 	// blockSize := 1
@@ -822,51 +845,51 @@ func DrawObjects(scene *Scene, img *image.RGBA, depthBuffer *DepthBuffer) {
 	// const maxDistance = 16.0 // Distance at which alpha should be fully transparent
 	// const minDistance = 8.0  // Distance at which alpha is fully opaque
 	// fmt.Println("Drawing", scene.Iteration)
-	for _, bd := range GetSortedBlockPositions(scene.Camera.Position) {
-		p := Vec3{int(bd.Position.X), int(bd.Position.Y), int(bd.Position.Z)}
-		block := scene.World.GetBlock(p)
-		rb, isRenderable := block.(WireRenderBlock)
-		localOffset := bd.Position
-		// cameraHorPos := scene.Camera.Position
-		// cameraHorPos.Y = localOffset.Y
-		// distance := Distance(localOffset, cameraHorPos)
-		var alphaScaling float64 = 1.0
+	// for _, bd := range GetSortedBlockPositions(scene.Camera.Position) {
+	// 	p := Vec3{int(bd.Position.X), int(bd.Position.Y), int(bd.Position.Z)}
+	// 	block := scene.World.GetBlock(p)
+	// 	rb, isRenderable := block.(WireRenderBlock)
+	// 	localOffset := bd.Position
+	// 	// cameraHorPos := scene.Camera.Position
+	// 	// cameraHorPos.Y = localOffset.Y
+	// 	// distance := Distance(localOffset, cameraHorPos)
+	// 	var alphaScaling float64 = 1.0
 
-		// if distance >= maxDistance {
-		// 	alphaScaling = minAlpha
-		// } else if distance <= minDistance {
-		// 	alphaScaling = maxAlpha
-		// } else {
-		// 	alphaScaling = maxAlpha * (1 - (distance / maxDistance))
-		// }
+	// 	// if distance >= maxDistance {
+	// 	// 	alphaScaling = minAlpha
+	// 	// } else if distance <= minDistance {
+	// 	// 	alphaScaling = maxAlpha
+	// 	// } else {
+	// 	// 	alphaScaling = maxAlpha * (1 - (distance / maxDistance))
+	// 	// }
 
-		if isRenderable {
-			for _, c := range rb.ToCuboids(scene) {
+	// 	if isRenderable {
+	// 		for _, c := range rb.ToCuboids(scene) {
 
-				mc := c.Move(localOffset)
+	// 			mc := c.Move(localOffset)
 
-				mc.Color.A = uint8(float64(mc.Color.A) * alphaScaling)
-				// fmt.Println(mc, globalOffset, localOffset)
-				DrawFilledCuboid(mc, scene.Camera, img, depthBuffer, &scene.Tilemap)
-				// DrawCuboid(mc, scene.Camera, img)
-				// fmt.Println(mc)
-			}
-		} else if p.Y == 0 {
-			// minP := Point3D{
-			// 	X: float64(p.X * blockSize),
-			// 	Y: float64(p.Y * blockSize),
-			// 	Z: float64(p.Z * blockSize),
-			// }
-			// maxP := Point3D{
-			// 	X: float64((p.X + 1) * blockSize),
-			// 	Y: float64((p.Y + 1) * blockSize),
-			// 	Z: float64((p.Z + 1) * blockSize),
-			// }
-			// c := MakeAxisAlignedCuboid(minP, maxP, color.RGBA{255, 255, 255, 100}, [6]string{"test", "test", "test", "test", "test", "test"})
-			// // c.Color.A = uint8(float64(c.Color.A) * alphaScaling)
-			// DrawFilledCuboid(c, scene.Camera, img, depthBuffer, &scene.Tilemap)
-		}
-	}
+	// 			mc.Color.A = uint8(float64(mc.Color.A) * alphaScaling)
+	// 			// fmt.Println(mc, globalOffset, localOffset)
+	// 			DrawFilledCuboid(mc, scene.Camera, img, depthBuffer, &scene.Tilemap)
+	// 			// DrawCuboid(mc, scene.Camera, img)
+	// 			// fmt.Println(mc)
+	// 		}
+	// 	} else if p.Y == 0 {
+	// 		// minP := Point3D{
+	// 		// 	X: float64(p.X * blockSize),
+	// 		// 	Y: float64(p.Y * blockSize),
+	// 		// 	Z: float64(p.Z * blockSize),
+	// 		// }
+	// 		// maxP := Point3D{
+	// 		// 	X: float64((p.X + 1) * blockSize),
+	// 		// 	Y: float64((p.Y + 1) * blockSize),
+	// 		// 	Z: float64((p.Z + 1) * blockSize),
+	// 		// }
+	// 		// c := MakeAxisAlignedCuboid(minP, maxP, color.RGBA{255, 255, 255, 100}, [6]string{"test", "test", "test", "test", "test", "test"})
+	// 		// // c.Color.A = uint8(float64(c.Color.A) * alphaScaling)
+	// 		// DrawFilledCuboid(c, scene.Camera, img, depthBuffer, &scene.Tilemap)
+	// 	}
+	// }
 }
 
 func DrawDebugInformation(scene *Scene, img *image.RGBA) {

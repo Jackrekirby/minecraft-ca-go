@@ -6,6 +6,7 @@ package core
 import (
 	"fmt"
 	"image"
+	"math"
 	"testing"
 	"time"
 )
@@ -56,4 +57,27 @@ func BenchmarkDrawTriangle3D(b *testing.B) {
 		)
 	}
 	SaveImage(sceneImage, CreateProjectRelativePath("output/benchmark.png"))
+}
+
+func benchmarkSinFunc(b *testing.B, sinFunc func(float64) float64, name string) {
+	b.Run(name, func(b *testing.B) {
+		var total float64 = 0
+		maxAngle := DegToRad(3600.0)
+		deltaAngle := DegToRad(0.1)
+		for i := 0; i < b.N; i++ {
+			for j := 0.0; j < maxAngle; j += deltaAngle {
+				total += sinFunc(j)
+			}
+		}
+		// Prevent compiler optimizations
+		_ = total
+	})
+}
+
+func BenchmarkSins(b *testing.B) {
+	InitSinTable()
+	benchmarkSinFunc(b, math.Sin, "math.Sin")
+	benchmarkSinFunc(b, FastSin2, "FastSin2")
+	benchmarkSinFunc(b, FastSin, "FastSin")
+
 }

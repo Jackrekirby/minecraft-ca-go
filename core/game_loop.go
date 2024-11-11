@@ -275,6 +275,13 @@ func RunEngine2(sceneImage *image.RGBA, scale int) {
 	sleepUndershoot := 10 * time.Millisecond
 	quit := make(chan struct{})
 
+	if isCPUProfiling {
+		go func() {
+			time.Sleep(10 * time.Second)
+			close(quit)
+		}()
+	}
+
 	scene := Scene{}
 
 	update := func(event *GameEvent, gameLoopManager *GameLoopManager) {
