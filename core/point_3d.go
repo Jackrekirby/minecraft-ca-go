@@ -114,3 +114,27 @@ func RotateVector(forward Point3D, rotation Point3D) Point3D {
 
 	return rotated
 }
+
+// CalculateEndPosition takes a starting point, a rotation (in radians), and a length, returning the end point.
+func CalculateEndPosition(start Point3D, rotation Point3D, length float64) Point3D {
+	// Define the initial forward direction (e.g., along the Z-axis)
+	forward := Point3D{X: 0, Y: 0, Z: 1}
+
+	// Rotate the forward vector by the given rotation angles
+	rotatedVector := RotateVector(forward, rotation)
+
+	// Normalize the rotated vector
+	normalizedVector := Normalize(rotatedVector)
+
+	// Scale the vector by the given length
+	scaledVector := Point3D{
+		X: normalizedVector.X * length,
+		Y: normalizedVector.Y * length,
+		Z: normalizedVector.Z * length,
+	}
+
+	// Calculate the end position by adding the scaled vector to the start point
+	endPosition := start.Add(scaledVector)
+
+	return endPosition
+}

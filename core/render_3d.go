@@ -951,6 +951,136 @@ func DrawTestTriangles(scene *Scene, img *image.RGBA, depthBuffer *DepthBuffer) 
 	// DrawTriangle3D(Point3D{k, 0, 0}, Point3D{k, k, k}, Point3D{k, k, 0}, scene.Camera, img, Blue.ToRGBA(), &depthBuffer)
 }
 
+func GetSign(x float64) int {
+	if x < 0 {
+		return -1
+	}
+	return 1
+}
+
+func Distance2(x1, y1, x2, y2 float64) float64 {
+	dx := x2 - x1
+	dy := y2 - y1
+	return dx*dx + dy*dy
+}
+
+func SqDist3(x1, y1, z1, x2, y2, z2 float64) float64 {
+	dx := x2 - x1
+	dy := y2 - y1
+	dz := x2 - x1
+	return dx*dx + dy*dy + dz*dz
+}
+
+// functional 2D line-grid intersection algorithm (z const)
+func DDA3D2(x1, y1, z1, x2, y2, z2 float64) []Point3D {
+	// Store the line points
+	var points []Point3D
+	points = append(points, Point3D{x1, y1, z1})
+
+	dx, dy := x2-x1, y2-y1
+	sx, sy := GetSign(dx), GetSign(dy)
+	dydx, dxdy := dy/dx, dx/dy
+	var x, y float64
+	if sx == -1 {
+		x = math.Floor(x1)
+	} else {
+		x = math.Ceil(x1)
+	}
+	if sy == -1 {
+		y = math.Floor(y1)
+	} else {
+		y = math.Ceil(y1)
+	}
+
+	for ((sx == 1 && x < x2) || (sx == -1 && x > x2)) ||
+		((sy == 1 && y < y2) || (sy == -1 && y > y2)) {
+		yn, xn := dydx*(x-x1)+y1, dxdy*(y-y1)+x1
+		ddx, ddy := Distance2(x1, y1, xn, y), Distance2(x1, y1, x, yn)
+		var p Point3D
+		if ddx > ddy {
+			p = Point3D{x, yn, z1}
+			x += float64(sx)
+		} else {
+			p = Point3D{xn, y, z1}
+			y += float64(sy)
+		}
+		points = append(points, p)
+	}
+	points = append(points, Point3D{x2, y2, z2})
+
+	return points
+}
+
+func boolRound(x float64, doFloor bool) float64 {
+	if doFloor {
+		return math.Floor(x)
+	} else {
+		return math.Ceil(x)
+	}
+}
+
+func replaceNaNWithInf(value float64) float64 {
+	if math.IsNaN(value) {
+		return math.Inf(1) // Replace NaN with positive infinity
+	}
+	return value
+}
+
+// functional 3D line-grid intersection algorithm
+func DDA3D(x1, y1, z1, x2, y2, z2 float64) []Point3D {
+	// Store the line points
+	var points []Point3D
+	points = append(points, Point3D{x1, y1, z1})
+
+	// Calculate differences
+	dx, dy, dz := x2-x1, y2-y1, z2-z1
+	sx, sy, sz := GetSign(dx), GetSign(dy), GetSign(dz)
+
+	x, y, z := boolRound(x1, sx == -1), boolRound(y1, sy == -1), boolRound(z1, sz == -1)
+
+	for ((sx == 1 && x < x2) || (sx == -1 && x > x2)) ||
+		((sy == 1 && y < y2) || (sy == -1 && y > y2)) ||
+		((sz == 1 && z < z2) || (sz == -1 && z > z2)) {
+
+		tx, ty, tz := (x-x1)/dx, (y-y1)/dy, (z-z1)/dz
+
+		ytx, ztx := (y2-y1)*tx+y1, (z2-z1)*tx+z1
+		xty, zty := (x2-x1)*ty+x1, (z2-z1)*ty+z1
+		xtz, ytz := (x2-x1)*tz+x1, (y2-y1)*tz+y1
+
+		// fmt.Println("p1", x1, y1, z1)
+
+		// fmt.Println("d", y, dy, ty)
+		// // fmt.Println("x", x, ytx, ztx)
+		// fmt.Println("y", xty, y, zty)
+		// // fmt.Println("z", xtz, ytz, z)
+		// fmt.Println("p2", x2, y2, z2)
+
+		ddx := replaceNaNWithInf(SqDist3(x1, y1, z1, x, ytx, ztx))
+		ddy := replaceNaNWithInf(SqDist3(x1, y1, z1, xty, y, zty))
+		ddz := replaceNaNWithInf(SqDist3(x1, y1, z1, xtz, ytz, z))
+
+		// fmt.Println("dd", ddx, ddy, ddz)
+
+		var p Point3D
+		if ddx < ddy && ddx < ddz {
+			p = Point3D{x, ytx, ztx}
+			x += float64(sx)
+		} else if ddy < ddz {
+			p = Point3D{xty, y, zty}
+			y += float64(sy)
+		} else {
+			p = Point3D{xtz, ytz, z}
+			z += float64(sz)
+		}
+		points = append(points, p)
+	}
+
+	points = append(points, Point3D{x2, y2, z2})
+
+	return points
+}
+
 func clearSceneImage(img *image.RGBA) {
 	width, height := img.Bounds().Dx(), img.Bounds().Dy()
 	color := color.RGBA{122, 168, 253, 255}

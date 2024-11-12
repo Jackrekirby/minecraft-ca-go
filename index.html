@@ -55,56 +55,105 @@
         border-radius: 50%;
         cursor: pointer;
         z-index: 10;
+        user-select: none;
       }
 
       /* Container that holds the control options */
       .controls-container {
         display: none;
         position: absolute;
-        top: 60px;
-        right: 20px;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
         background-color: #fff;
         padding: 20px;
         border-radius: 8px;
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        width: 300px;
+        width: min(720px, 50%);
         text-align: left;
         z-index: 9;
+        opacity: 0.9;
       }
 
       /* Show the controls container when hovering over the icon */
-      .controls-icon:hover + .controls-container {
+      .controls-icon:focus + .controls-container {
         display: block;
       }
 
       h2 {
         text-align: center;
         color: #333;
+        padding-bottom: 8px;
+      }
+      h3 {
+        color: #333;
+        padding-bottom: 4px;
       }
 
       ul {
         list-style: none;
         padding: 0;
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
       }
 
       li {
-        margin: 10px 0;
+        margin: 4px 0;
+        width: min(300px, 100%);
       }
 
       .key {
         font-weight: bold;
         color: #007bff;
       }
+
+      a {
+        color: #007bff;
+      }
+
+      .source-code {
+        display: flex;
+        justify-content: center;
+        box-sizing: content-box;
+        margin: 16px 0px;
+      }
     </style>
   </head>
   <body>
     <!-- Controls Icon (Clickable for showing controls) -->
-    <div class="controls-icon">?</div>
+    <div class="controls-icon" tabindex="1">?</div>
 
     <!-- Controls Container (Hidden by default) -->
     <div class="controls-container">
-      <h2>Game Controls</h2>
+      <h2>Minecraft Cellular Automata in Go</h2>
+      <p>
+        This project aims to recreate Minecraft redstone as a cellular automata,
+        in the programming language Go.
+      </p>
+
+      <a
+        class="source-code"
+        href="https://github.com/Jackrekirby/minecraft-ca-go"
+        target="_blank"
+        rel="noopener noreferrer"
+        >github/minecraft-ca-go</a
+      >
+
+      <p>This project began in two dimensions, programmed in Typescript.</p>
+
+      <a
+        class="source-code"
+        href="https://github.com/Jackrekirby/minecraft-ca-ts"
+        target="_blank"
+        rel="noopener noreferrer"
+        >github/minecraft-ca-ts</a
+      >
+
+      <h3>Game Controls</h3>
       <ul>
+        <li><span class="key">Click</span>: Rotate Camera</li>
+        <li><span class="key">ESC</span>: Exit Camera</li>
         <li><span class="key">Q</span>: Quit the game</li>
         <li><span class="key">P</span>: Toggle Play/Pause</li>
         <li><span class="key">O</span>: Step One Iteration</li>

@@ -86,6 +86,52 @@ func runProgram2(_ js.Value, _ []js.Value) interface{} {
 	return nil
 }
 
+// var sceneImageData js.Value
+
+// type State struct {
+// 	sceneImageData *js.Value
+// }
+
+func sizeCanvas(
+	sceneImage **image.RGBA,
+	depthBuffer **DepthBuffer,
+	scale int,
+	scene *Scene,
+) (width int, height int) {
+	document := js.Global().Get("document")
+	canvas := document.Call("getElementById", "canvas")
+
+	screenWidth := js.Global().Get("window").Get("innerWidth").Int()
+	screenHeight := js.Global().Get("window").Get("innerHeight").Int()
+
+	canvasWidth := screenWidth / scale * scale
+	canvasHeight := screenHeight / scale * scale
+
+	canvas.Set("width", canvasWidth)
+	canvas.Set("height", canvasHeight)
+
+	width = canvasWidth / scale
+	height = canvasHeight / scale
+
+	// newSceneImage := image.NewRGBA(image.Rect(0, 0, width, height))
+	*sceneImage = image.NewRGBA(image.Rect(0, 0, width, height))
+	// fmt.Println("sceneImage1", sceneImage)
+	newDepthBuffer := make(DepthBuffer, width*height)
+	*depthBuffer = &newDepthBuffer
+
+	jsData := js.Global().Get("Uint8ClampedArray").New(canvasWidth * canvasHeight * 4)
+	js.CopyBytesToJS(jsData, scaleImage(*sceneImage, float64(scale), draw.NearestNeighbor).Pix)
+
+	js.Global().Set("sceneImageData", js.Global().Get("ImageData").New(jsData, canvasWidth, canvasHeight))
+	// state.sceneImageData = &x
+	// x := &js.Global().Get("ImageData").New(jsData, canvasWidth, canvasHeight)
+
+	fmt.Println("Size [canvas, image]", canvasWidth, canvasHeight, width, height)
+	// fmt.Println("sceneImage1", sceneImage)
+	scene.Camera.AspectRatio = float64(height) / float64(width)
+	return
+}
+
 func runProgram2Inner() {
 	document := js.Global().Get("document")
 	canvas := document.Call("getElementById", "canvas")
@@ -93,23 +139,31 @@ func runProgram2Inner() {
 
 	scale := 1
 
-	// Get the current screen size
-	screenWidth := js.Global().Get("window").Get("innerWidth").Int() / scale * scale
-	screenHeight := js.Global().Get("window").Get("innerHeight").Int() / scale * scale
+	scene := Scene{}
 
-	// Choose the shorter dimension to maintain aspect ratio
-	// screenShortDim := min(screenWidth, screenHeight)
+	var sceneImage *image.RGBA
+	var depthBuffer *DepthBuffer
+	// var state *State = &State{}
+	sizeCanvas(&sceneImage, &depthBuffer, scale, &scene)
+	// fmt.Println("sceneImageData", js.Global().Get("sceneImageData"))
+	// fmt.Println("depthBuffer", depthBuffer != nil)
+	// // Get the current screen size
+	// screenWidth := js.Global().Get("window").Get("innerWidth").Int() / scale * scale
+	// screenHeight := js.Global().Get("window").Get("innerHeight").Int() / scale * scale
 
-	// Set canvas size to fill the smaller screen dimension
-	canvas.Set("width", screenWidth)
-	canvas.Set("height", screenHeight)
+	// // Choose the shorter dimension to maintain aspect ratio
+	// // screenShortDim := min(screenWidth, screenHeight)
 
-	// Create a new RGBA image buffer with the default resolution (can be adjusted if needed)
-	width := screenWidth / scale
-	height := screenHeight / scale
+	// // Set canvas size to fill the smaller screen dimension
+	// canvas.Set("width", screenWidth)
+	// canvas.Set("height", screenHeight)
 
-	// Create a new RGBA image buffer
-	sceneImage := image.NewRGBA(image.Rect(0, 0, width, height))
+	// // Create a new RGBA image buffer with the default resolution (can be adjusted if needed)
+	// width := screenWidth / scale
+	// height := screenHeight / scale
+
+	// // Create a new RGBA image buffer
+	// sceneImage := image.NewRGBA(image.Rect(0, 0, width, height))
 
 	// fmt.Println("sw, sh, w, h", screenWidth, screenHeight, width, height)
 
@@ -120,7 +174,6 @@ func runProgram2Inner() {
 
 	quit := make(chan struct{})
 
-	scene := Scene{}
 	InitialiseScene(&scene, sceneImage, scale)
 
 	mouse := Mouse{}
@@ -140,23 +193,52 @@ func runProgram2Inner() {
 		}
 	}
 
-	jsData := js.Global().Get("Uint8ClampedArray").New(screenWidth * screenHeight * 4)
-	js.CopyBytesToJS(jsData, scaleImage(*sceneImage, float64(scale), draw.NearestNeighbor).Pix)
+	// jsData := js.Global().Get("Uint8ClampedArray").New(screenWidth * screenHeight * 4)
+	// js.CopyBytesToJS(jsData, scaleImage(*sceneImage, float64(scale), draw.NearestNeighbor).Pix)
 
-	sceneImageData := js.Global().Get("ImageData").New(jsData, screenWidth, screenHeight)
+	// sceneImageData := js.Global().Get("ImageData").New(jsData, screenWidth, screenHeight)
 
+	var debounceTimer *time.Timer
+	onResize := func(this js.Value, args []js.Value) interface{} {
+		// If a previous timer exists, stop it
+		if debounceTimer != nil {
+			debounceTimer.Stop()
+		}
+
+		// Create a new timer that waits for debounceDuration
+		callback := func() {
+			sizeCanvas(&sceneImage, &depthBuffer, scale, &scene)
+		}
+
+		debounceTimer = time.AfterFunc(1*time.Second, callback)
+		return nil
+	}
+
+	// Set up the resize event listener
+	resizeCallback := js.FuncOf(onResize)
+	js.Global().Call("addEventListener", "resize", resizeCallback)
+
+	// sceneImageData := js.Global().Get("ImageData")
 	outputSceneImage := func(img *image.RGBA) {
+		sceneImageData := js.Global().Get("sceneImageData")
 		// drawFrame(img, screenWidth, screenHeight, ctx)
+		// fmt.Println("sceneImageData", sceneImageData)
 		jsData := sceneImageData.Get("data")
+		// fmt.Println("jsData", jsData)
+		if !jsData.Truthy() {
+			fmt.Println("sceneImageData", sceneImageData)
+			fmt.Println("jsData", jsData)
+			return
+		}
+		// fmt.Println("Length of sceneImageData:", len(img.Pix))
+		// fmt.Println("Length of jsData:", jsData.Length())
 		js.CopyBytesToJS(jsData, img.Pix)
 		ctx.Call("putImageData", sceneImageData, 0, 0)
 	}
 
-	depthBuffer := make(DepthBuffer, width*height)
-
 	render := func(event *GameEvent, gameLoopManager *GameLoopManager) {
 		time.Sleep(1 * time.Millisecond)
-		Render(&scene, sceneImage, scale, &depthBuffer, outputSceneImage)
+		Render(&scene, sceneImage, scale, depthBuffer, outputSceneImage)
 	}
 
 	updateStatistics := func(event *GameEvent, gameLoopManager *GameLoopManager) {

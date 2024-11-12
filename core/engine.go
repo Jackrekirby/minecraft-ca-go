@@ -37,7 +37,7 @@ func runRenderLoop(scene *Scene, img *image.RGBA, scale int, depthBuffer *DepthB
 	for scene.GameState != Quit {
 		startTime := time.Now()
 		DrawScene(scene, img, depthBuffer)
-		OutputSceneImage(scaleImage(*img, float64(scale), draw.NearestNeighbor))
+		OutputSceneImage(scaleImage(img, float64(scale), draw.NearestNeighbor))
 		elapsedTime := time.Since(startTime)
 		scene.RecordedFramesPerSecond = int(1.0 / elapsedTime.Seconds())
 		sleepTime := period - elapsedTime

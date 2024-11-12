@@ -93,14 +93,14 @@ func loadImage(filePath string) (image.Image, error) {
 	return img, nil
 }
 
-func scaleImage(original image.RGBA, multiplier float64, interpolator draw.Interpolator) *image.RGBA {
+func scaleImage(original *image.RGBA, multiplier float64, interpolator draw.Interpolator) *image.RGBA {
 	// Calculate new dimensions
 	newWidth := int(float64(original.Bounds().Dx()) * multiplier)
 	newHeight := int(float64(original.Bounds().Dy()) * multiplier)
 	scaledImage := image.NewRGBA(image.Rect(0, 0, newWidth, newHeight))
 
 	// Draw the original image into the new scaled image
-	interpolator.Scale(scaledImage, scaledImage.Rect, &original, original.Bounds(), draw.Over, nil)
+	interpolator.Scale(scaledImage, scaledImage.Rect, original, original.Bounds(), draw.Over, nil)
 
 	return scaledImage
 }
