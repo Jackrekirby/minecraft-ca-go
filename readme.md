@@ -96,7 +96,7 @@ https://github.com/markfarnan/go-canvas
 - [x] Add input via terminal [Windows]
 - [x] Add statistics (fps, tps ...)
 - [x] Add mouse camera movement [WASM]
-- [ ] Add place & destroy blocks
+- [ ] Add place & destroy blocks [CalculateEndPosition]
 - [ ] Add inventory system
 
 ### Rendering
