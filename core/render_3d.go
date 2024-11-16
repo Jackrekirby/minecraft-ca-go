@@ -39,8 +39,8 @@ func DrawLine(img *image.RGBA, p0, p1 Int_2D, col color.RGBA) {
 	err := dx + dy
 
 	for {
-		// img.Set(p0.X, p0.Y, col)
-		DrawBox2D(p0.X, p0.Y, 1, col, img)
+		img.Set(p0.X, p0.Y, col)
+		// DrawBox2D(p0.X, p0.Y, 1, col, img)
 		if p0.X == p1.X && p0.Y == p1.Y {
 			break
 		}
@@ -1103,6 +1103,156 @@ func clearDepthBuffer(depthBuffer *DepthBuffer) {
 	}
 }
 
+func DebugDrawRayCast(scene *Scene, img *image.RGBA) {
+	// endPos := CalculateEndPosition(scene.Camera.Position, scene.Camera.Rotation, 5)
+	startPos := Point3D{5.2, 5.3, -5.4}
+	endPos := CalculateEndPosition(startPos, Point3D{0, DegToRad(22.5), 0}, 5)
+
+	x1, y1, z1 := startPos.ToComponents()
+	x2, y2, z2 := endPos.ToComponents()
+	points := DDA3D(x1, y1, z1, x2, y2, z2)
+	// fmt.Println(points)
+	k := 0.1
+	clr := color.RGBA{0, 255, 0, 255}
+	clr2 := color.RGBA{255, 0, 0, 255}
+	clr3 := color.RGBA{0, 0, 255, 255}
+	uvs := MakeCuboidUVsForSingleTexture("redstone_lamp_on", scene)
+	for _, p := range points {
+		p1 := Point3D{math.Floor(p.X), math.Floor(p.Y), math.Floor(p.Z)}
+		p2 := p1.Add(Point3D{1, 1, 1})
+
+		p3 := Point3D{p.X - k/2, p.Y - k/2, p.Z - k/2}
+		p4 := p3.Add(Point3D{k, k, k})
+		// fmt.Println(i, p1, p2)
+		cuboid1 := MakeAxisAlignedCuboid(p1, p2, clr, uvs)
+		DrawCuboid(cuboid1, scene.Camera, img)
+
+		cuboid2 := MakeAxisAlignedCuboid(p3, p4, clr2, uvs)
+		DrawCuboid(cuboid2, scene.Camera, img)
+	}
+
+	// attempt to work out face of ray cast
+	for i := 2; i < len(points); i++ {
+		p0 := points[i-1]
+		p1 := points[i]
+
+		fp1 := Point3D{math.Floor(p1.X), math.Floor(p1.Y), math.Floor(p1.Z)}
+
+		dp0 := p0.Subtract(fp1)
+
+		var dir Direction
+		if dp0.X == 0 || dp0.X == -1 {
+			dir = Left
+		} else if dp0.X == 1 {
+			dir = Right
+		} else if dp0.Y == 0 || dp0.Y == -1 {
+			dir = Down
+		} else if dp0.Y == 1 {
+			dir = Up
+		} else if dp0.Z == 0 || dp0.Z == -1 {
+			dir = Front
+		} else if dp0.Z == 1 {
+			dir = Back
+		} else {
+			fmt.Println(i, p0, dp0)
+			panic("position not along any face")
+		}
+		dp := dir.ToVec3().ToPoint3D().Scale(0.1)
+		p2 := p0.Add(dp)
+		// fmt.Println(i, p0, dp0, dir)
+		cuboid2 := MakeAxisAlignedCuboid(p0, p2, clr3, uvs)
+		DrawCuboid(cuboid2, scene.Camera, img)
+	}
+}
+
+func GetRayCastPositions(scene *Scene) (previous *Vec3, selected *Vec3) {
+	// selected will return nil if all air blocks
+	// previous will return nil is selected nil, or selected is current position
+	startPos := scene.Camera.Position
+	r := scene.Camera.Rotation
+	endPos := CalculateEndPosition(startPos, r.Scale(-1), 8)
+
+	x1, y1, z1 := startPos.ToComponents()
+	x2, y2, z2 := endPos.ToComponents()
+	points := DDA3D(x1, y1, z1, x2, y2, z2)
+
+	var fpoints []Vec3
+
+	// get the unique block positions
+	for _, p := range points {
+		fp := p.ToVec3()
+		n := len(fpoints)
+		// fmt.Println(fpoints, len(fpoints))
+		if n == 0 {
+			fpoints = append(fpoints, fp)
+		} else {
+			// fmt.Println(fpoints, len(fpoints), i, i-1)
+			if fpoints[n-1].Equals(fp) {
+				continue
+			}
+			fpoints = append(fpoints, fp)
+		}
+	}
+
+	for i, p := range fpoints {
+		b := scene.World.GetBlock(p)
+		_, isAir := b.(Air)
+		if !isAir {
+			if i == 0 {
+				return nil, &p
+			}
+			return &fpoints[i-1], &p
+		}
+	}
+
+	return nil, nil
+}
+
+func DrawWireCube(scene *Scene, img *image.RGBA, p Point3D) {
+	clr := color.RGBA{0, 255, 0, 255}
+	uvs := MakeCuboidUVsForSingleTexture("redstone_lamp_on", scene)
+
+	p2 := p.Add(Point3D{1, 1, 1})
+	cuboid := MakeAxisAlignedCuboid(p, p2, clr, uvs)
+	DrawCuboid(cuboid, scene.Camera, img)
+}
+
+func DrawRayCast(scene *Scene, img *image.RGBA) {
+	startPos := scene.Camera.Position
+	r := scene.Camera.Rotation
+	endPos := CalculateEndPosition(startPos, r.Scale(-1), 5)
+	// startPos := Point3D{5.2, 5.3, -5.4}
+	// endPos := CalculateEndPosition(startPos, Point3D{0, DegToRad(22.5), 0}, 5)
+
+	x1, y1, z1 := startPos.ToComponents()
+	x2, y2, z2 := endPos.ToComponents()
+	points := DDA3D(x1, y1, z1, x2, y2, z2)
+
+	clr := color.RGBA{0, 255, 0, 255}
+	uvs := MakeCuboidUVsForSingleTexture("redstone_lamp_on", scene)
+
+	for _, p := range points {
+		p1 := Point3D{math.Floor(p.X), math.Floor(p.Y), math.Floor(p.Z)}
+		b := scene.World.GetBlock(p1.ToVec3())
+		_, isAir := b.(Air)
+		if !isAir {
+			p2 := p1.Add(Point3D{1, 1, 1})
+			cuboid := MakeAxisAlignedCuboid(p1, p2, clr, uvs)
+			DrawCuboid(cuboid, scene.Camera, img)
+			return
+		}
+	}
+
+}
+
+func drawCrossHair(img *image.RGBA) {
+	x, y := img.Bounds().Dx()/2, img.Bounds().Dy()/2
+	k := 5
+	clr := Gray.ToRGBA()
+	DrawLine(img, Int_2D{x + k, y}, Int_2D{x - k, y}, clr)
+	DrawLine(img, Int_2D{x, y + k}, Int_2D{x, y - k}, clr)
+}
+
 func DrawScene(scene *Scene, img *image.RGBA, depthBuffer *DepthBuffer) {
 	clearDepthBuffer(depthBuffer)
 	clearSceneImage(img)
@@ -1110,5 +1260,15 @@ func DrawScene(scene *Scene, img *image.RGBA, depthBuffer *DepthBuffer) {
 	// DrawTestTriangles(scene, img, depthBuffer)
 
 	DrawObjects(scene, img, depthBuffer)
+
+	// DebugDrawRayCast(scene, img)
+	// DrawRayCast(scene, img)
+
+	_, selectedPos := GetRayCastPositions(scene)
+	if selectedPos != nil {
+		DrawWireCube(scene, img, selectedPos.ToPoint3D())
+	}
+
+	drawCrossHair(img)
 	DrawDebugInformation(scene, img)
 }

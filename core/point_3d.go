@@ -9,6 +9,19 @@ type Point3D struct {
 	Z float64 `json:"Z"`
 }
 
+func (p Point3D) ToVec3() Vec3 {
+	return Vec3{
+		X: int(p.X),
+		Y: int(p.Y),
+		Z: int(p.Z),
+	}
+}
+
+func (v Point3D) ToComponents() (x, y, z float64) {
+	x, y, z = v.X, v.Y, v.Z
+	return
+}
+
 func Point3DFromScalar(s float64) Point3D {
 	return Point3D{s, s, s}
 }
@@ -42,6 +55,14 @@ func (v Point3D) Multiply(other Point3D) Point3D {
 		X: v.X * other.X,
 		Y: v.Y * other.Y,
 		Z: v.Z * other.Z,
+	}
+}
+
+func (v Point3D) Scale(scale float64) Point3D {
+	return Point3D{
+		X: v.X * scale,
+		Y: v.Y * scale,
+		Z: v.Z * scale,
 	}
 }
 

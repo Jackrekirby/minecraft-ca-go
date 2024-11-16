@@ -8,6 +8,18 @@ type Vec3 struct {
 	Z int
 }
 
+func (v1 Vec3) Equals(v2 Vec3) bool {
+	return v1.X == v2.X && v1.Y == v2.Y && v1.Z == v2.Z
+}
+
+func (v Vec3) ToPoint3D() Point3D {
+	return Point3D{
+		X: float64(v.X),
+		Y: float64(v.Y),
+		Z: float64(v.Z),
+	}
+}
+
 func (v Vec3) Add(other Vec3) Vec3 {
 	return Vec3{
 		X: v.X + other.X,

@@ -31,15 +31,17 @@ func drawFrame(frameBuffer *image.RGBA, width, height int, ctx js.Value) {
 
 func MainWebAssembly() {
 	// This is required to prevent the Go runtime from exiting.
-	c := make(chan struct{}, 0)
+	// c := make(chan struct{}, 0)
 
 	js.Global().Set("runProgram", js.FuncOf(runProgram2))
 
 	// Wait indefinitely.
-	<-c
+	// <-c
+	select {}
 }
 
 func runProgram(this js.Value, args []js.Value) interface{} {
+
 	document := js.Global().Get("document")
 	canvas := document.Call("getElementById", "canvas")
 	ctx := canvas.Call("getContext", "2d")
@@ -133,6 +135,12 @@ func sizeCanvas(
 }
 
 func runProgram2Inner() {
+	// defer func() {
+	// 	if r := recover(); r != nil {
+	// 		fmt.Println("Recovered from panic:", r)
+	// 	}
+	// }()
+
 	document := js.Global().Get("document")
 	canvas := document.Call("getElementById", "canvas")
 	ctx := canvas.Call("getContext", "2d")
