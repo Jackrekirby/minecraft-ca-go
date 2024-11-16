@@ -90,3 +90,7 @@ func (b RedstoneLamp) ToCuboids(scene *Scene) []Cuboid {
 		),
 	}
 }
+
+func (b RedstoneLamp) IsOpaqueInDirection(d Direction) bool {
+	return true
+}

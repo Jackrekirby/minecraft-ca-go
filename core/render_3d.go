@@ -9,6 +9,11 @@ import (
 	"golang.org/x/image/math/fixed"
 )
 
+const skipAdjacentFaces = true // false = slow
+const drawTriangleWire = false // true = slow
+const DebugUV = false
+const TexturePerspective = true
+
 func DrawBox2D(x, y, size int, col color.RGBA, img *image.RGBA) {
 	for i := -size / 2; i <= size/2; i++ {
 		for j := -size / 2; j <= size/2; j++ {
@@ -412,13 +417,25 @@ func DrawFilledCuboid(
 	img *image.RGBA,
 	depthBuffer *DepthBuffer,
 	tilemap *Tilemap,
+	facesToRender *[]int,
 ) {
+	// vertices := [...]Point3D{
+	// 	{min.X, min.Y, min.Z}, // 0: Left-bottom-front
+	// 	{max.X, min.Y, min.Z}, // 1: Right-bottom-front
+	// 	{max.X, max.Y, min.Z}, // 2: Right-top-front
+	// 	{min.X, max.Y, min.Z}, // 3: Left-top-front
+	// 	{min.X, min.Y, max.Z}, // 4: Left-bottom-back
+	// 	{max.X, min.Y, max.Z}, // 5: Right-bottom-back
+	// 	{max.X, max.Y, max.Z}, // 6: Right-top-back
+	// 	{min.X, max.Y, max.Z}, // 7: Left-top-back
+	// }
+
 	// Define the faces of the cube with four vertices each
 	faces := [][4]int{
 		{0, 3, 2, 1}, // Front face
 		{4, 5, 6, 7}, // Back face
-		{0, 1, 5, 4}, // Top face
-		{2, 3, 7, 6}, // Bottom face
+		{0, 1, 5, 4}, // Top face *bottom
+		{2, 3, 7, 6}, // Bottom face *top
 		{7, 3, 0, 4}, // Left face
 		{1, 2, 6, 5}, // Right face
 	}
@@ -434,11 +451,11 @@ func DrawFilledCuboid(
 	// }
 	uvs := denormaliseCuboidUVs(tilemap, cuboid.uvs)
 	// Draw each face of the cube using two triangles
-	for i, face := range faces {
+	for _, i := range *facesToRender {
 		// Split each face into two triangles and draw
 		// uvs := createCuboidUVs(tilemap, cuboid.textures[i])
-
-		uv := uvs[i]
+		face := &faces[i]
+		uv := &uvs[i]
 		DrawTriangle3D(
 			Vertex{cuboid.vertices[face[0]], uv[0][0], uv[0][1]},
 			Vertex{cuboid.vertices[face[1]], uv[1][0], uv[1][1]},
@@ -534,9 +551,6 @@ type Vertex2 struct {
 func f2i(x float64) int {
 	return int(math.Round(x))
 }
-
-const DebugUV = false
-const TexturePerspective = true
 
 func getUVColor(u, v, depth float64, texture *image.RGBA) color.RGBA {
 	if DebugUV {
@@ -778,9 +792,12 @@ func DrawTriangle2D2(img *image.RGBA, p1, p2, p3 ImgPoint, col color.RGBA,
 	// 	}
 	// }
 	renderTriangle(img, texture, v, depthBuffer, shade)
-	// DrawLine(img, Int_2D{p1.X, p1.Y}, Int_2D{p2.X, p2.Y}, White.ToRGBA())
-	// DrawLine(img, Int_2D{p1.X, p1.Y}, Int_2D{p3.X, p3.Y}, White.ToRGBA())
-	// DrawLine(img, Int_2D{p3.X, p3.Y}, Int_2D{p2.X, p2.Y}, White.ToRGBA())
+	if drawTriangleWire {
+		DrawLine(img, Int_2D{p1.X, p1.Y}, Int_2D{p2.X, p2.Y}, White.ToRGBA())
+		DrawLine(img, Int_2D{p1.X, p1.Y}, Int_2D{p3.X, p3.Y}, White.ToRGBA())
+		DrawLine(img, Int_2D{p3.X, p3.Y}, Int_2D{p2.X, p2.Y}, White.ToRGBA())
+	}
+
 }
 
 func renderTriangle(img *image.RGBA, texture *image.RGBA, v [3]Vertex2, depthBuffer *DepthBuffer, shade float64) {
@@ -823,14 +840,42 @@ func Convert1DTo3D(i int) Point3D {
 }
 
 func DrawObjects(scene *Scene, img *image.RGBA, depthBuffer *DepthBuffer) {
+	// {0, 3, 2, 1}, // Front face
+	// {4, 5, 6, 7}, // Back face
+	// {0, 1, 5, 4}, // Top face
+	// {2, 3, 7, 6}, // Bottom face
+	// {7, 3, 0, 4}, // Left face
+	// {1, 2, 6, 5}, // Right face
+	var Directions = [6]Direction{Back, Front, Down, Up, Left, Right} // inconsistent direction order
 	for i, block := range scene.World.Blocks {
 		rb, isRenderable := block.(WireRenderBlock)
 
 		if isRenderable {
+			// if a block and is neighbour are opaque on their shared face then dont render
+			var faces []int
+			position := Convert1DTo3D(i)
+			opaqueBlock, isOpaqueBlock := block.(OpaqueBlock)
+			if skipAdjacentFaces && isOpaqueBlock {
+				for face, direction := range Directions {
+					if !opaqueBlock.IsOpaqueInDirection(direction) {
+						continue
+					}
+					np := position.ToVec3().Move(direction)
+					neighbour := scene.World.GetBlock(np)
+					nOpaqueBlock, nIsOpaqueBlock := neighbour.(OpaqueBlock)
+					if !nIsOpaqueBlock || !nOpaqueBlock.IsOpaqueInDirection(direction.GetOppositeDirection()) {
+						faces = append(faces, face)
+					}
+				}
+			} else {
+				faces = []int{0, 1, 2, 3, 4, 5}
+			}
+
 			for _, c := range rb.ToCuboids(scene) {
-				position := Convert1DTo3D(i) // generating a new cuboid is bad. mutate or move vertices dynamically inside function
+				// generating a new cuboid is bad. mutate or move vertices dynamically inside function
 				movedCuboid := c.Move(position)
-				DrawFilledCuboid(movedCuboid, scene.Camera, img, depthBuffer, &scene.Tilemap)
+				DrawFilledCuboid(movedCuboid, scene.Camera, img, depthBuffer, &scene.Tilemap, &faces)
+
 			}
 		}
 	}

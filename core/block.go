@@ -31,3 +31,13 @@ type RenderableBlock interface {
 type WireRenderBlock interface {
 	ToCuboids(scene *Scene) []Cuboid
 }
+
+type OpaqueBlock interface {
+	IsOpaqueInDirection(d Direction) bool
+}
+
+type DirectionalBlock interface {
+	Type() string // Block interface
+	GetDirection() Direction
+	SetDirection(d Direction) DirectionalBlock // would love for this to mutate
+}

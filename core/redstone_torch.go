@@ -11,6 +11,15 @@ func (b RedstoneTorch) Type() string {
 	return "RedstoneTorch"
 }
 
+func (b RedstoneTorch) GetDirection() Direction {
+	return b.Direction
+}
+
+func (b RedstoneTorch) SetDirection(d Direction) DirectionalBlock {
+	b.Direction = d
+	return b
+}
+
 func (b RedstoneTorch) Update(p Vec3, w *World) (Block, bool) {
 	neighbour := w.GetBlock(p.Move(b.Direction.GetOppositeDirection()))
 

@@ -7,6 +7,10 @@ type WoolBlock struct {
 	InputPowerType PowerType
 }
 
+// func (b *WoolBlock) Type() string {
+// 	return "WoolBlock"
+// }
+
 func (b WoolBlock) Type() string {
 	return "WoolBlock"
 }
@@ -39,4 +43,8 @@ func (b WoolBlock) ToCuboids(scene *Scene) []Cuboid {
 			MakeCuboidUVsForSingleTexture(fmt.Sprintf("%s_wool", ToSnakeCase(b.Color.String())), scene),
 		),
 	}
+}
+
+func (b WoolBlock) IsOpaqueInDirection(d Direction) bool {
+	return true
 }

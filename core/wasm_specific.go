@@ -549,7 +549,8 @@ func ReadFromLocalStorage(key string, data any) error {
 // MOUSE CLICK
 
 func SetupMouseClickEvents(scene *Scene) {
-	var selectedBlock Block = WoolBlock{Cyan, None}
+	var selectedBlock Block = &WoolBlock{Cyan, None}
+	// var x DirectionalBlock = &RedstoneTorch{Left, false}
 	handleMouseClick := func(this js.Value, args []js.Value) any {
 		event := args[0]
 		button := event.Get("button").Int()
@@ -569,9 +570,19 @@ func SetupMouseClickEvents(scene *Scene) {
 			}
 			if previousPos != nil && selectedPos != nil {
 				delta := selectedPos.Subtract(*previousPos)
-				fmt.Println(delta.ToDirection())
-
-				scene.World.SetBlock(*previousPos, selectedBlock)
+				dir := delta.ToDirection().GetOppositeDirection()
+				// fmt.Println(dir)
+				// fmt.Printf("selectedBlock type: %T\n", selectedBlock)
+				directionalBlock, isDirectionalBlock := selectedBlock.(DirectionalBlock)
+				var block Block
+				if isDirectionalBlock {
+					block = directionalBlock.SetDirection(dir)
+					// fmt.Println("isDirectionalBlock", block)
+				} else {
+					block = selectedBlock
+					// fmt.Println("!isDirectionalBlock", block)
+				}
+				scene.World.SetBlock(*previousPos, block)
 			}
 			return nil
 		case 2:

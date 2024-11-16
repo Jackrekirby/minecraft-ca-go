@@ -31,3 +31,7 @@ func (b RedstoneBlock) ToCuboids(scene *Scene) []Cuboid {
 		),
 	}
 }
+
+func (b RedstoneBlock) IsOpaqueInDirection(d Direction) bool {
+	return true
+}

@@ -96,8 +96,10 @@ https://github.com/markfarnan/go-canvas
 - [x] Add input via terminal [Windows]
 - [x] Add statistics (fps, tps ...)
 - [x] Add mouse camera movement [WASM]
-- [ ] Add place & destroy blocks [CalculateEndPosition]
+- [x] Add raycasting for block selection
+- [x] Add place, destroy, pick & interact with blocks
 - [ ] Add inventory system
+- [x] Make block placement directional
 
 ### Rendering
 
@@ -117,3 +119,5 @@ https://github.com/markfarnan/go-canvas
 - [x] Scale text with image size
 - [x] Automatically resize on window rescale
 - [x] Fix depth / uv coordinates on camera pitching
+- [x] Do not render opaque neighbouring faces
+- [ ] Cut triangles off outside viewport
