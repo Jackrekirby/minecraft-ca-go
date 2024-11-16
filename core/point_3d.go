@@ -9,6 +9,14 @@ type Point3D struct {
 	Z float64 `json:"Z"`
 }
 
+func (p Point3D) Floor() Point3D {
+	return Point3D{
+		X: math.Floor(p.X),
+		Y: math.Floor(p.Y),
+		Z: math.Floor(p.Z),
+	}
+}
+
 func (p Point3D) ToVec3() Vec3 {
 	return Vec3{
 		X: int(p.X),

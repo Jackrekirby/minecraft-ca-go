@@ -188,6 +188,7 @@ func runProgram2Inner() {
 	cleanupMouseListener := AddMouseListener(&scene, &mouse)
 	defer cleanupMouseListener()
 	// HandleMouseEvents(&scene, &mouse)
+	SetupMouseClickEvents(&scene)
 	go KeyboardEvents(&scene)
 	go runGameSave(&scene) // consider moving inside update
 	// keyboardManager := KeyboardManager{}
@@ -543,4 +544,63 @@ func ReadFromLocalStorage(key string, data any) error {
 		return fmt.Errorf("error reading JSON data: %w", err)
 	}
 	return nil
+}
+
+// MOUSE CLICK
+
+func SetupMouseClickEvents(scene *Scene) {
+	var selectedBlock Block = WoolBlock{Cyan, None}
+	handleMouseClick := func(this js.Value, args []js.Value) any {
+		event := args[0]
+		button := event.Get("button").Int()
+
+		switch button {
+		case 0:
+			fmt.Println("Left click [place]")
+			// place block
+			previousPos, selectedPos := GetRayCastPositions(scene)
+			if selectedPos != nil {
+				block := scene.World.GetBlock(*selectedPos)
+				_, isLever := block.(Lever)
+				if isLever {
+					toggleLever(*selectedPos, &scene.World)
+					return nil
+				}
+			}
+			if previousPos != nil && selectedPos != nil {
+				delta := selectedPos.Subtract(*previousPos)
+				fmt.Println(delta.ToDirection())
+
+				scene.World.SetBlock(*previousPos, selectedBlock)
+			}
+			return nil
+		case 2:
+			fmt.Println("Right click [destroy]")
+			// destroy block
+			_, selectedPos := GetRayCastPositions(scene)
+			if selectedPos != nil {
+				scene.World.SetBlock(*selectedPos, Air{})
+			}
+			return nil
+		default:
+			fmt.Println("Other click [select]")
+			// pick block
+			_, selectedPos := GetRayCastPositions(scene)
+			if selectedPos != nil {
+				selectedBlock = scene.World.GetBlock(*selectedPos)
+				fmt.Println("Selected Block", selectedBlock.Type(), selectedBlock)
+			}
+
+		}
+		return nil
+	}
+
+	preventContextMenu := func(this js.Value, args []js.Value) any {
+		args[0].Call("preventDefault")
+		return nil
+	}
+
+	// Create JavaScript event listeners
+	js.Global().Get("document").Call("addEventListener", "mousedown", js.FuncOf(handleMouseClick))
+	js.Global().Get("document").Call("addEventListener", "contextmenu", js.FuncOf(preventContextMenu))
 }

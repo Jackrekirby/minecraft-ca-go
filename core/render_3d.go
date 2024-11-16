@@ -250,7 +250,8 @@ func DrawTriangle3D(
 	// Dot product between normal and light direction
 	intensity := DotProduct(normal, lightDirection)
 	// fmt.Println(normal, lightDirection, intensity)
-	intensity = 0.7 + max(0, min(intensity, 1))*0.3
+	kShade := 0.7 // 0 = black, 1 = no shade
+	intensity = kShade + max(0, min(intensity, 1))*(1-kShade)
 
 	// Shade the color based on the lighting intensity
 	shadedColor := ShadeColor(clr, intensity)
@@ -285,7 +286,7 @@ func DrawTriangle3D(
 		ip2 := ImgPoint{p2.X, p2.Y, d2, v2.U / w2, v2.V / w2}
 		ip1 := ImgPoint{p1.X, p1.Y, d1, v1.U / w1, v1.V / w1}
 		ip3 := ImgPoint{p3.X, p3.Y, d3, v3.U / w3, v3.V / w3}
-		DrawTriangle2D2(img, ip1, ip2, ip3, shadedColor, depthBuffer, texture)
+		DrawTriangle2D2(img, ip1, ip2, ip3, shadedColor, depthBuffer, texture, intensity)
 	}
 }
 
@@ -550,7 +551,7 @@ func getUVColor(u, v, depth float64, texture *image.RGBA) color.RGBA {
 	}
 }
 
-func renderFlatBottomTriangle(img *image.RGBA, texture *image.RGBA, v [3]Vertex2, depthBuffer *DepthBuffer) {
+func renderFlatBottomTriangle(img *image.RGBA, texture *image.RGBA, v [3]Vertex2, depthBuffer *DepthBuffer, shade float64) {
 	//texSize := Point2D{float64(texture.Bounds().Dx()), float64(texture.Bounds().Dy())}
 	imageSize := Int_2D{img.Bounds().Dx(), img.Bounds().Dy()}
 	// assumes vertices are already ordered such that: v0.Y < v1.Y = v2.Y
@@ -639,6 +640,7 @@ func renderFlatBottomTriangle(img *image.RGBA, texture *image.RGBA, v [3]Vertex2
 			if depth < (*depthBuffer)[dbi] {
 				(*depthBuffer)[dbi] = depth
 				clr := getUVColor(u, vv, depth, texture)
+				clr = ShadeColor(clr, shade)
 				// img.Set(x, y, clr)
 
 				// currentColor := img.RGBAAt(x, y)
@@ -651,7 +653,7 @@ func renderFlatBottomTriangle(img *image.RGBA, texture *image.RGBA, v [3]Vertex2
 	// DrawLine(img, Int_2D{v[1].X, v[1].Y}, Int_2D{v[2].X, v[2].Y}, White.ToRGBA())
 }
 
-func renderFlatTopTriangle(img *image.RGBA, texture *image.RGBA, v [3]Vertex2, depthBuffer *DepthBuffer) {
+func renderFlatTopTriangle(img *image.RGBA, texture *image.RGBA, v [3]Vertex2, depthBuffer *DepthBuffer, shade float64) {
 	// texSize := Point2D{float64(texture.Bounds().Dx()), float64(texture.Bounds().Dy())}
 	imageSize := Int_2D{img.Bounds().Dx(), img.Bounds().Dy()}
 	// assumes vertices are already ordered such that: v0.Y = v1.Y < v2.Y
@@ -745,6 +747,7 @@ func renderFlatTopTriangle(img *image.RGBA, texture *image.RGBA, v [3]Vertex2, d
 			if depth < (*depthBuffer)[dbi] {
 				(*depthBuffer)[dbi] = depth
 				clr := getUVColor(u, vv, depth, texture)
+				clr = ShadeColor(clr, shade)
 				// currentColor := img.RGBAAt(x, y)
 				// newColor := CombineColors(clr, currentColor)
 				img.SetRGBA(x, y, clr)
@@ -754,7 +757,7 @@ func renderFlatTopTriangle(img *image.RGBA, texture *image.RGBA, v [3]Vertex2, d
 }
 
 func DrawTriangle2D2(img *image.RGBA, p1, p2, p3 ImgPoint, col color.RGBA,
-	depthBuffer *DepthBuffer, texture *image.RGBA,
+	depthBuffer *DepthBuffer, texture *image.RGBA, shade float64,
 ) {
 	v := [3]Vertex2{
 		{p1.X, p1.Y, p1.Z, p1.U, p1.V, 1.0 / p1.Z},
@@ -774,13 +777,13 @@ func DrawTriangle2D2(img *image.RGBA, p1, p2, p3 ImgPoint, col color.RGBA,
 	// 		{p3.X, p3.Y, p3.Z, p3.U, p3.V, 1.0},
 	// 	}
 	// }
-	renderTriangle(img, texture, v, depthBuffer)
+	renderTriangle(img, texture, v, depthBuffer, shade)
 	// DrawLine(img, Int_2D{p1.X, p1.Y}, Int_2D{p2.X, p2.Y}, White.ToRGBA())
 	// DrawLine(img, Int_2D{p1.X, p1.Y}, Int_2D{p3.X, p3.Y}, White.ToRGBA())
 	// DrawLine(img, Int_2D{p3.X, p3.Y}, Int_2D{p2.X, p2.Y}, White.ToRGBA())
 }
 
-func renderTriangle(img *image.RGBA, texture *image.RGBA, v [3]Vertex2, depthBuffer *DepthBuffer) {
+func renderTriangle(img *image.RGBA, texture *image.RGBA, v [3]Vertex2, depthBuffer *DepthBuffer, shade float64) {
 	// sort vertices so v0.Y <= v1.Y <= v2.Y
 	if v[0].Y > v[1].Y {
 		v[0], v[1] = v[1], v[0]
@@ -793,9 +796,9 @@ func renderTriangle(img *image.RGBA, texture *image.RGBA, v [3]Vertex2, depthBuf
 	}
 
 	if v[1].Y == v[2].Y {
-		renderFlatBottomTriangle(img, texture, v, depthBuffer)
+		renderFlatBottomTriangle(img, texture, v, depthBuffer, shade)
 	} else if v[0].Y == v[1].Y {
-		renderFlatTopTriangle(img, texture, v, depthBuffer)
+		renderFlatTopTriangle(img, texture, v, depthBuffer, shade)
 	} else {
 		t := float64(v[1].Y-v[0].Y) / float64(v[2].Y-v[0].Y)
 		x := v[0].X + int(t*float64(v[2].X-v[0].X))
@@ -804,8 +807,8 @@ func renderTriangle(img *image.RGBA, texture *image.RGBA, v [3]Vertex2, depthBuf
 		b := v[0].V + t*(v[2].V-v[0].V)
 		tz := v[0].TZ + t*(v[2].TZ-v[0].TZ)
 		// fmt.Println(z, v[0].Z, v[2].Z)
-		renderFlatBottomTriangle(img, texture, [3]Vertex2{v[0], {x, v[1].Y, z, a, b, tz}, v[1]}, depthBuffer)
-		renderFlatTopTriangle(img, texture, [3]Vertex2{{x, v[1].Y, z, a, b, tz}, v[1], v[2]}, depthBuffer)
+		renderFlatBottomTriangle(img, texture, [3]Vertex2{v[0], {x, v[1].Y, z, a, b, tz}, v[1]}, depthBuffer, shade)
+		renderFlatTopTriangle(img, texture, [3]Vertex2{{x, v[1].Y, z, a, b, tz}, v[1], v[2]}, depthBuffer, shade)
 	}
 }
 
@@ -1103,10 +1106,10 @@ func clearDepthBuffer(depthBuffer *DepthBuffer) {
 	}
 }
 
-func DebugDrawRayCast(scene *Scene, img *image.RGBA) {
+func DebugDrawRayCast(scene *Scene, img *image.RGBA, startPos Point3D, rotation Point3D) {
 	// endPos := CalculateEndPosition(scene.Camera.Position, scene.Camera.Rotation, 5)
-	startPos := Point3D{5.2, 5.3, -5.4}
-	endPos := CalculateEndPosition(startPos, Point3D{0, DegToRad(22.5), 0}, 5)
+	// startPos := Point3D{0.1, 9.7, -2.7}
+	endPos := CalculateEndPosition(startPos, rotation, 8)
 
 	x1, y1, z1 := startPos.ToComponents()
 	x2, y2, z2 := endPos.ToComponents()
@@ -1176,11 +1179,19 @@ func GetRayCastPositions(scene *Scene) (previous *Vec3, selected *Vec3) {
 	x2, y2, z2 := endPos.ToComponents()
 	points := DDA3D(x1, y1, z1, x2, y2, z2)
 
+	midPoints := make([]Point3D, len(points)-1)
+
+	for i := 0; i < len(points)-1; i++ {
+		p1, p2 := points[i], points[i+1]
+		mp := p1.Add(p2).Scale(0.5)
+		midPoints[i] = mp
+	}
+
 	var fpoints []Vec3
 
 	// get the unique block positions
-	for _, p := range points {
-		fp := p.ToVec3()
+	for _, p := range midPoints {
+		fp := p.Floor().ToVec3()
 		n := len(fpoints)
 		// fmt.Println(fpoints, len(fpoints))
 		if n == 0 {
@@ -1208,6 +1219,57 @@ func GetRayCastPositions(scene *Scene) (previous *Vec3, selected *Vec3) {
 	return nil, nil
 }
 
+func DrawGetRayCastPositions(scene *Scene, img *image.RGBA, startPos Point3D, rotation Point3D) {
+	// selected will return nil if all air blocks
+	// previous will return nil is selected nil, or selected is current position
+	endPos := CalculateEndPosition(startPos, rotation, 8)
+
+	x1, y1, z1 := startPos.ToComponents()
+	x2, y2, z2 := endPos.ToComponents()
+	points := DDA3D(x1, y1, z1, x2, y2, z2)
+
+	midPoints := make([]Point3D, len(points)-1)
+
+	for i := 0; i < len(points)-1; i++ {
+		p1, p2 := points[i], points[i+1]
+		mp := p1.Add(p2).Scale(0.5)
+		midPoints[i] = mp
+	}
+
+	// var fpoints []Vec3
+
+	// // get the unique block positions
+	// for _, p := range midPoints {
+	// 	fp := p.ToVec3()
+	// 	n := len(fpoints)
+	// 	// fmt.Println(fpoints, len(fpoints))
+	// 	if n == 0 {
+	// 		fpoints = append(fpoints, fp)
+	// 	} else {
+	// 		// fmt.Println(fpoints, len(fpoints), i, i-1)
+	// 		if fpoints[n-1].Equals(fp) {
+	// 			continue
+	// 		}
+	// 		fpoints = append(fpoints, fp)
+	// 	}
+	// }
+	uvs := MakeCuboidUVsForSingleTexture("redstone_lamp_on", scene)
+	clr := color.RGBA{0, 0, 255, 255}
+	clr2 := color.RGBA{100, 100, 255, 255}
+	for _, p := range midPoints {
+		dd := Point3D{0.1, 0.1, 0.1}
+		p1 := p.Subtract(dd.Scale(0.5))
+		p2 := p1.Add(dd)
+		cuboid1 := MakeAxisAlignedCuboid(p1, p2, clr, uvs)
+		DrawCuboid(cuboid1, scene.Camera, img)
+
+		p1 = p.Floor().Add(Point3D{0.5, 0.5, 0.5}).Subtract(dd.Scale(0.5))
+		p2 = p1.Add(dd)
+		cuboid1 = MakeAxisAlignedCuboid(p1, p2, clr2, uvs)
+		DrawCuboid(cuboid1, scene.Camera, img)
+	}
+}
+
 func DrawWireCube(scene *Scene, img *image.RGBA, p Point3D) {
 	clr := color.RGBA{0, 255, 0, 255}
 	uvs := MakeCuboidUVsForSingleTexture("redstone_lamp_on", scene)
@@ -1220,7 +1282,7 @@ func DrawWireCube(scene *Scene, img *image.RGBA, p Point3D) {
 func DrawRayCast(scene *Scene, img *image.RGBA) {
 	startPos := scene.Camera.Position
 	r := scene.Camera.Rotation
-	endPos := CalculateEndPosition(startPos, r.Scale(-1), 5)
+	endPos := CalculateEndPosition(startPos, r.Scale(-1), 8)
 	// startPos := Point3D{5.2, 5.3, -5.4}
 	// endPos := CalculateEndPosition(startPos, Point3D{0, DegToRad(22.5), 0}, 5)
 
@@ -1228,19 +1290,20 @@ func DrawRayCast(scene *Scene, img *image.RGBA) {
 	x2, y2, z2 := endPos.ToComponents()
 	points := DDA3D(x1, y1, z1, x2, y2, z2)
 
-	clr := color.RGBA{0, 255, 0, 255}
+	clr := color.RGBA{255, 255, 255, 255}
 	uvs := MakeCuboidUVsForSingleTexture("redstone_lamp_on", scene)
 
+	k := 0.1
+	m := 0.5 - k/2
 	for _, p := range points {
-		p1 := Point3D{math.Floor(p.X), math.Floor(p.Y), math.Floor(p.Z)}
-		b := scene.World.GetBlock(p1.ToVec3())
-		_, isAir := b.(Air)
-		if !isAir {
-			p2 := p1.Add(Point3D{1, 1, 1})
-			cuboid := MakeAxisAlignedCuboid(p1, p2, clr, uvs)
-			DrawCuboid(cuboid, scene.Camera, img)
-			return
-		}
+		p1 := Point3D{math.Floor(p.X) + m, math.Floor(p.Y) + m, math.Floor(p.Z) + m}
+		// b := scene.World.GetBlock(p1.ToVec3())
+		// _, isAir := b.(Air)
+		// if !isAir {
+		p2 := p1.Add(Point3D{k, k, k})
+		cuboid := MakeAxisAlignedCuboid(p1, p2, clr, uvs)
+		DrawCuboid(cuboid, scene.Camera, img)
+		// }
 	}
 
 }
@@ -1261,8 +1324,15 @@ func DrawScene(scene *Scene, img *image.RGBA, depthBuffer *DepthBuffer) {
 
 	DrawObjects(scene, img, depthBuffer)
 
-	// DebugDrawRayCast(scene, img)
+	// startPos := Point3D{0.1, 9.7, -2.7}
+	// rotation := Point3D{DegToRad(332.5), DegToRad(349.5), 0}.Scale(-1)
+
+	// startPos := scene.Player.Position
+	// rotation := scene.Player.Rotation.Scale(-1)
+
 	// DrawRayCast(scene, img)
+	// DrawGetRayCastPositions(scene, img, startPos, rotation)
+	// DebugDrawRayCast(scene, img, startPos, rotation)
 
 	_, selectedPos := GetRayCastPositions(scene)
 	if selectedPos != nil {

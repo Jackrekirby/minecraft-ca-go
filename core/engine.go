@@ -9,11 +9,17 @@ import (
 	"golang.org/x/image/font"
 )
 
+type Player struct {
+	Position Point3D
+	Rotation Point3D
+}
+
 type Scene struct {
 	Iteration int
 	GameState GameState
 	Camera    Camera
 	World     World
+	Player    Player
 	// metrics
 	FramesPerSecond                   int // not being used anymore to set frame rate along with other vars
 	StepsPerSecond                    int
@@ -123,6 +129,10 @@ func InitialiseScene(scene *Scene, sceneImage *image.RGBA, scale int) {
 			CameraRotation: Point3D{X: DegToRad(0), Y: DegToRad(0), Z: DegToRad(0)},
 		}
 	}
+	// gameSave = GameSave{
+	// 	CameraPosition: Point3D{0.1, 9.7, -2.7},
+	// 	CameraRotation: Point3D{DegToRad(332.5), DegToRad(349.5), 0},
+	// }
 
 	scene.GameState = Playing
 	scene.FramesPerSecond = 2
@@ -140,6 +150,10 @@ func InitialiseScene(scene *Scene, sceneImage *image.RGBA, scale int) {
 		AspectRatio: float64(height) / float64(width),
 		Near:        0.1,
 		Far:         100.0,
+	}
+	scene.Player = Player{
+		Position: gameSave.CameraPosition,
+		Rotation: gameSave.CameraRotation,
 	}
 
 	// load assets

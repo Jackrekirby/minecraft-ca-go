@@ -8,6 +8,26 @@ type Vec3 struct {
 	Z int
 }
 
+func (v Vec3) ToDirection() Direction {
+	switch v {
+	case Vec3{0, 1, 0}:
+		return Up
+	case Vec3{0, -1, 0}:
+		return Down
+	case Vec3{-1, 0, 0}:
+		return Left
+	case Vec3{1, 0, 0}:
+		return Right
+	case Vec3{0, 0, 1}:
+		return Front
+	case Vec3{0, 0, -1}:
+		return Back
+	default:
+		fmt.Println(v)
+		panic("Vec3 does not map to a valid Direction")
+	}
+}
+
 func (v1 Vec3) Equals(v2 Vec3) bool {
 	return v1.X == v2.X && v1.Y == v2.Y && v1.Z == v2.Z
 }
