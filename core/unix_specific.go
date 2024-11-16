@@ -142,6 +142,26 @@ func LoadAsset(filename string) ([]byte, error) {
 	return bytes, nil
 }
 
+func OpenAsset(filename string) (*os.File, error) {
+	relPath := fmt.Sprintf("core/assets/%s", filename)
+	absPath := CreateProjectRelativePath(relPath)
+
+	// Check if the file exists
+	if _, err := os.Stat(absPath); os.IsNotExist(err) {
+		fmt.Printf("Asset file does not exist: %s\n", absPath)
+		return nil, err
+	}
+
+	// Read the file content
+	file, err := os.Open(absPath)
+	if err != nil {
+		fmt.Printf("Failed to read asset '%s': %v\n", absPath, err)
+		return nil, err
+	}
+
+	return file, nil
+}
+
 func LoadAssets() ([]fs.DirEntry, error) {
 	files, err := os.ReadDir("core/assets")
 	if err != nil {

@@ -71,6 +71,7 @@ https://github.com/markfarnan/go-canvas
 - [x] Use Go's internal nanotime over time.Now()
 - [x] Avoid image.Set, goto underlying pixels or use SetRGBA
 - [ ] Improve scaling performance
+- [ ] Investigate parallelism
 
 ### Blocks
 
@@ -121,3 +122,5 @@ https://github.com/markfarnan/go-canvas
 - [x] Fix depth / uv coordinates on camera pitching
 - [x] Do not render opaque neighbouring faces
 - [ ] Cut triangles off outside viewport
+- [x] Add crosshair
+- [ ] Make crosshair change color for contrast

@@ -390,6 +390,15 @@ func LoadAsset(filename string) ([]byte, error) {
 	return bytes, nil
 }
 
+func OpenAsset(filename string) (fs.File, error) {
+	file, err := assets.Open(fmt.Sprintf("assets/%s", filename))
+	if err != nil {
+		fmt.Printf("Failed to open asset '%s'\n", filename)
+		return nil, err
+	}
+	return file, nil
+}
+
 func LoadAssets() ([]fs.DirEntry, error) {
 	files, err := assets.ReadDir("assets")
 	if err != nil {
@@ -557,7 +566,7 @@ func SetupMouseClickEvents(scene *Scene) {
 
 		switch button {
 		case 0:
-			fmt.Println("Left click [place]")
+			// fmt.Println("Left click [place]")
 			// place block
 			previousPos, selectedPos := GetRayCastPositions(scene)
 			if selectedPos != nil {
@@ -586,7 +595,7 @@ func SetupMouseClickEvents(scene *Scene) {
 			}
 			return nil
 		case 2:
-			fmt.Println("Right click [destroy]")
+			// fmt.Println("Right click [destroy]")
 			// destroy block
 			_, selectedPos := GetRayCastPositions(scene)
 			if selectedPos != nil {
@@ -594,12 +603,12 @@ func SetupMouseClickEvents(scene *Scene) {
 			}
 			return nil
 		default:
-			fmt.Println("Other click [select]")
+			// fmt.Println("Other click [select]")
 			// pick block
 			_, selectedPos := GetRayCastPositions(scene)
 			if selectedPos != nil {
 				selectedBlock = scene.World.GetBlock(*selectedPos)
-				fmt.Println("Selected Block", selectedBlock.Type(), selectedBlock)
+				// fmt.Println("Selected Block", selectedBlock.Type(), selectedBlock)
 			}
 
 		}
