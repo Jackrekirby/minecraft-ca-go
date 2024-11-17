@@ -101,6 +101,7 @@ https://github.com/markfarnan/go-canvas
 - [x] Add place, destroy, pick & interact with blocks
 - [ ] Add inventory system
 - [x] Make block placement directional
+- [x] Add ability to toggle control lock
 
 ### Rendering
 

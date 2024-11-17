@@ -1,6 +1,7 @@
 .vscode/
 save/
-*.png
+core/assets/*.png
+output/*.png
 *.pprof
 *.out
 *.exe
