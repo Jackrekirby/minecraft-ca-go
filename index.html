@@ -40,7 +40,7 @@
       }
 
       /* Icon to trigger control container */
-      .controls-icon {
+      #controls-icon {
         position: absolute;
         top: 20px;
         right: 20px;
@@ -58,9 +58,46 @@
         user-select: none;
       }
 
+      .row {
+        display: flex;
+        justify-content: flex-start;
+        align-items: center;
+        flex-direction: row;
+      }
+
+      .mini-icon {
+        width: 20px;
+        height: 20px;
+        background-color: #007bff;
+        color: white;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border-radius: 50%;
+        user-select: none;
+      }
+
+      #mouse-icon {
+        position: absolute;
+        top: 80px;
+        right: 20px;
+        width: 40px;
+        height: 40px;
+        background-color: #007bff;
+        color: white;
+        font-size: 20px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border-radius: 50%;
+        cursor: pointer;
+        z-index: 10;
+        user-select: none;
+      }
+
       /* Container that holds the control options */
-      .controls-container {
-        display: none;
+      #controls-container {
+        display: block;
         position: absolute;
         top: 50%;
         left: 50%;
@@ -69,17 +106,20 @@
         padding: 20px;
         border-radius: 8px;
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        width: min(720px, 50%);
+        width: min(720px, 90%);
         text-align: left;
         z-index: 9;
         opacity: 0.9;
       }
 
+      .hide {
+        display: none !important;
+      }
       /* Show the controls container when hovering over the icon */
-      .controls-icon:focus + .controls-container,
+      /* #controls-icon:focus + .controls-container,
       .controls-container:hover {
         display: block;
-      }
+      } */
 
       h2 {
         text-align: center;
@@ -100,7 +140,8 @@
       }
 
       li {
-        margin: 4px 0;
+        margin: 4px 0px;
+        margin-right: 16px;
         width: min(300px, 100%);
       }
 
@@ -123,10 +164,13 @@
   </head>
   <body>
     <!-- Controls Icon (Clickable for showing controls) -->
-    <div class="controls-icon" tabindex="1">?</div>
+    <div id="controls-icon" tabindex="1">?</div>
+    <div id="mouse-icon" tabindex="2">
+      <img src="./core/assets/cursor.png" alt="^" />
+    </div>
 
     <!-- Controls Container (Hidden by default) -->
-    <div class="controls-container">
+    <div id="controls-container">
       <h2>Minecraft Cellular Automata in Go</h2>
       <p>
         This project aims to recreate Minecraft redstone as a cellular automata,
@@ -154,11 +198,29 @@
 
       <h3>Game Controls</h3>
       <ul>
+        <li>
+          <span class="row">
+            <span class="mini-icon">
+              <img
+                src="./core/assets/cursor.png"
+                alt="^"
+                width="8.4px"
+                height="12px" /></span
+            >: Unlock Controls</span
+          >
+        </li>
+
+        <li><span class="key">ESC</span>: Lock Controls</li>
+        <li>
+          <span class="row">
+            <span class="mini-icon"> ?</span>: Toggle Menu</span
+          >
+        </li>
         <li><span class="key">Mouse</span>: Rotate Camera</li>
         <li><span class="key">Left Click</span>: Place/Interact Block</li>
         <li><span class="key">Right Click</span>: Destroy Block</li>
         <li><span class="key">Middle Click</span>: Pick Block</li>
-        <li><span class="key">ESC</span>: Exit Camera</li>
+
         <li><span class="key">Q</span>: Quit the game</li>
         <li><span class="key">P</span>: Toggle Play/Pause</li>
         <li><span class="key">O</span>: Step One Iteration</li>

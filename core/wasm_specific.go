@@ -459,11 +459,6 @@ func onPointerLockChange(this js.Value, args []js.Value) any {
 	return nil
 }
 
-func onClick(this js.Value, args []js.Value) any {
-	js.Global().Get("document").Get("body").Call("requestPointerLock")
-	return nil
-}
-
 type Mouse struct {
 	Dx int // pixels
 	Dy int // pixels
@@ -473,21 +468,39 @@ func AddMouseListener(scene *Scene, mouse *Mouse) func() {
 	// Create JavaScript event listeners
 	mouseMoveCallback := js.FuncOf(buildOnMouseMoveCallback(scene, mouse))
 	// pointerLockChangeCallback := js.FuncOf(onPointerLockChange)
-	clickCallback := js.FuncOf(onClick)
 
 	// Add the event listeners to the document
 	js.Global().Get("document").Call("addEventListener", "mousemove", mouseMoveCallback)
 	// js.Global().Get("document").Call("addEventListener", "pointerlockchange", pointerLockChangeCallback)
 
 	// Add click event listener to the canvas element
-	canvas := js.Global().Get("document").Call("getElementById", "canvas")
-	canvas.Call("addEventListener", "click", clickCallback)
+	// canvas := js.Global().Get("document").Call("getElementById", "canvas")
+
+	mouseOnClick := func(this js.Value, args []js.Value) any {
+		js.Global().Get("document").Get("body").Call("requestPointerLock")
+		return nil
+	}
+	mouseClickCallback := js.FuncOf(mouseOnClick)
+	mouseIcon := js.Global().Get("document").Call("getElementById", "mouse-icon")
+	mouseIcon.Call("addEventListener", "click", mouseClickCallback)
+
+	controlsIcon := js.Global().Get("document").Call("getElementById", "controls-icon")
+	controlsContainer := js.Global().Get("document").Call("getElementById", "controls-container")
+	controlsOnClick := func(this js.Value, args []js.Value) any {
+		fmt.Println("controls icon")
+		// Toggle the 'hide' class using classList.toggle()
+		controlsContainer.Get("classList").Call("toggle", "hide")
+		return nil
+	}
+	controlsClickCallback := js.FuncOf(controlsOnClick)
+	controlsIcon.Call("addEventListener", "click", controlsClickCallback)
 
 	// return cleanup function
 	return func() {
 		mouseMoveCallback.Release()
 		// pointerLockChangeCallback.Release()
-		clickCallback.Release()
+		controlsClickCallback.Release()
+		mouseClickCallback.Release()
 	}
 }
 
@@ -561,6 +574,9 @@ func SetupMouseClickEvents(scene *Scene) {
 	var selectedBlock Block = &WoolBlock{Cyan, None}
 	// var x DirectionalBlock = &RedstoneTorch{Left, false}
 	handleMouseClick := func(this js.Value, args []js.Value) any {
+		if !js.Global().Get("document").Get("pointerLockElement").Truthy() {
+			return nil
+		}
 		event := args[0]
 		button := event.Get("button").Int()
 
@@ -616,7 +632,9 @@ func SetupMouseClickEvents(scene *Scene) {
 	}
 
 	preventContextMenu := func(this js.Value, args []js.Value) any {
-		args[0].Call("preventDefault")
+		if js.Global().Get("document").Get("pointerLockElement").Truthy() {
+			args[0].Call("preventDefault")
+		}
 		return nil
 	}
 
