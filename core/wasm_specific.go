@@ -465,6 +465,12 @@ type Mouse struct {
 }
 
 func AddMouseListener(scene *Scene, mouse *Mouse) func() {
+	var showWelcomePage bool
+	err := ReadFromLocalStorage("ShowWelcomePage", &showWelcomePage)
+	if err != nil {
+		showWelcomePage = true
+	}
+
 	// Create JavaScript event listeners
 	mouseMoveCallback := js.FuncOf(buildOnMouseMoveCallback(scene, mouse))
 	// pointerLockChangeCallback := js.FuncOf(onPointerLockChange)
@@ -487,10 +493,21 @@ func AddMouseListener(scene *Scene, mouse *Mouse) func() {
 
 	controlsIcon := js.Global().Get("document").Call("getElementById", "controls-icon")
 	controlsContainer := js.Global().Get("document").Call("getElementById", "controls-container")
+
+	if showWelcomePage {
+		controlsContainer.Get("classList").Call("remove", "hide")
+	} else {
+		controlsContainer.Get("classList").Call("add", "hide")
+	}
+
 	controlsOnClick := func(this js.Value, args []js.Value) any {
 		fmt.Println("controls icon")
 		// Toggle the 'hide' class using classList.toggle()
 		controlsContainer.Get("classList").Call("toggle", "hide")
+		if showWelcomePage {
+			WriteToLocalStorage("ShowWelcomePage", false)
+		}
+
 		return nil
 	}
 	controlsClickCallback := js.FuncOf(controlsOnClick)

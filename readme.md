@@ -50,7 +50,6 @@ https://github.com/markfarnan/go-canvas
 - [x] Add compilation to WASM
 - [x] Add build scripts
 - [x] Add build instructions
-- [x] Add task list
 
 ### Game
 
@@ -102,6 +101,7 @@ https://github.com/markfarnan/go-canvas
 - [ ] Add inventory system
 - [x] Make block placement directional
 - [x] Add ability to toggle control lock
+- [x] Show welcome page by default on first page visit
 
 ### Rendering
 
@@ -113,7 +113,7 @@ https://github.com/markfarnan/go-canvas
 - [x] Add depth buffer
 - [x] Make texture account for perspective
 - [ ] Support OBJ format
-- [ ] Add welcome page
+- [x] Add welcome page
 - [x] Support scene scaling
 - [x] Fix texture leakage
 - [ ] Add model viewer & builder
