@@ -474,9 +474,10 @@ func AddMouseListener(scene *Scene, mouse *Mouse) func() {
 	// js.Global().Get("document").Call("addEventListener", "pointerlockchange", pointerLockChangeCallback)
 
 	// Add click event listener to the canvas element
-	// canvas := js.Global().Get("document").Call("getElementById", "canvas")
+	canvas := js.Global().Get("document").Call("getElementById", "canvas")
 
 	mouseOnClick := func(this js.Value, args []js.Value) any {
+		canvas.Call("focus")
 		js.Global().Get("document").Get("body").Call("requestPointerLock")
 		return nil
 	}
