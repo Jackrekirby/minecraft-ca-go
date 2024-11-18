@@ -16,15 +16,15 @@ func (b WoolBlock) Type() string {
 }
 
 func (b WoolBlock) OutputsPowerInDirection(d Direction) bool {
-	return b.InputPowerType != None
-}
-
-func (b WoolBlock) OutputsStrongPowerInDirection(d Direction) bool {
 	return b.InputPowerType == Strong
 }
 
+func (b WoolBlock) OutputsStrongPowerInDirection(d Direction) bool {
+	return false
+}
+
 func (b WoolBlock) OutputsWeakPowerInDirection(d Direction) bool {
-	return b.InputPowerType == Weak
+	return b.InputPowerType == Strong
 }
 
 func (b WoolBlock) SubUpdate(p Vec3, w *World) (Block, bool) {

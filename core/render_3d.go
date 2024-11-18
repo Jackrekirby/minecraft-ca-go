@@ -61,6 +61,37 @@ func DrawLine(img *image.RGBA, p0, p1 Int_2D, col color.RGBA) {
 	}
 }
 
+func GenerateLine(p0, p1 Int_2D, callback func(int, int)) {
+	dx := int(math.Abs(float64(p1.X - p0.X)))
+	sx := -1
+	if p0.X < p1.X {
+		sx = 1
+	}
+	dy := -int(math.Abs(float64(p1.Y - p0.Y)))
+	sy := -1
+	if p0.Y < p1.Y {
+		sy = 1
+	}
+	err := dx + dy
+
+	for {
+		callback(p0.X, p0.Y)
+		// DrawBox2D(p0.X, p0.Y, 1, col, img)
+		if p0.X == p1.X && p0.Y == p1.Y {
+			break
+		}
+		e2 := 2 * err
+		if e2 >= dy {
+			err += dy
+			p0.X += sx
+		}
+		if e2 <= dx {
+			err += dx
+			p0.Y += sy
+		}
+	}
+}
+
 func calculateDepth(point Point3D, c Camera) float64 {
 	// should be returned by project point...
 	// Translate the point by the camera position
@@ -234,49 +265,52 @@ func DrawTriangle3D(
 	normal := CalculateNormal(v1.Position, v2.Position, v3.Position)
 	avgV := v1.Position.Add(v2.Position).Add(v3.Position).Divide(Point3D{3, 3, 3})
 
-	// RotateVector(Point3D{0, 0, 1}, camera.Rotation)
 	// plane not in direction of camera
 	if DotProduct(normal, Normalize(camera.Position.Subtract(avgV))) < 0 {
 		return
 	}
 	imageSize := Point2D{float64(img.Bounds().Dx()), float64(img.Bounds().Dy())}
 	// Project the 3D vertices to 2D screen coordinates
-	p1 := ProjectPoint(v1.Position, camera, imageSize)
-	p2 := ProjectPoint(v2.Position, camera, imageSize)
-	p3 := ProjectPoint(v3.Position, camera, imageSize)
+	// p1 := ProjectPoint(v1.Position, camera, imageSize)
+	// p2 := ProjectPoint(v2.Position, camera, imageSize)
+	// p3 := ProjectPoint(v3.Position, camera, imageSize)
 
-	// depthPerVertex := Point3D{Distance(v1, camera.Position), Distance(v2, camera.Position), Distance(v3, camera.Position)}
+	p1 := camera.Convert3DTo2D(v1.Position)
+	p2 := camera.Convert3DTo2D(v2.Position)
+	p3 := camera.Convert3DTo2D(v3.Position)
 
-	// fmt.Println(v1, v2, v3, camera.Position, depthPerVertex)
-
-	lightDirection := Normalize(Point3D{-0.3, 0.5, 0.8})
-
-	// Calculate the shading intensity based on alignment with the light direction
-	// Dot product between normal and light direction
-	intensity := DotProduct(normal, lightDirection)
-	// fmt.Println(normal, lightDirection, intensity)
-	kShade := 0.7 // 0 = black, 1 = no shade
-	intensity = kShade + max(0, min(intensity, 1))*(1-kShade)
-
-	// Shade the color based on the lighting intensity
-	shadedColor := ShadeColor(clr, intensity)
-
-	// xx := Point3D{255, 255, 255}.Multiply(normal)
-	// shadedColor = color.RGBA{uint8(xx.X), uint8(xx.Y), uint8(xx.Z), uint8(255)}
-
-	// Draw the triangle on the 2D screen using the projected points
 	if p1 != nil && p2 != nil && p3 != nil {
-		// i dont think we need distance from camera, just depth for working
-		// out which pixels to draw on top of eachother
-		// d1 := Distance(v1.Position, camera.Position)
-		// d2 := Distance(v2.Position, camera.Position)
-		// d3 := Distance(v3.Position, camera.Position)
+		k := 1.0 // cull edge thickness
+		if ((p1.X < -k || p1.X > k) || (p1.Y < -k || p1.Y > k)) &&
+			((p2.X < -k || p2.X > k) || (p2.Y < -k || p2.Y > k)) &&
+			((p3.X < -k || p3.X > k) || (p3.Y < -k || p3.Y > k)) {
+			return
+		}
+
+		halfWidth, halfHeight := imageSize.X/2, imageSize.Y/2
+		pi1 := Int_2D{
+			int(p1.X*halfWidth + halfWidth),
+			int(-p1.Y*halfHeight + halfHeight),
+		}
+		pi2 := Int_2D{
+			int(p2.X*halfWidth + halfWidth),
+			int(-p2.Y*halfHeight + halfHeight),
+		}
+		pi3 := Int_2D{
+			int(p3.X*halfWidth + halfWidth),
+			int(-p3.Y*halfHeight + halfHeight),
+		}
+
+		lightDirection := Normalize(Point3D{-0.3, 0.5, 0.8})
+		intensity := DotProduct(normal, lightDirection)
+		kShade := 0.7 // 0 = black, 1 = no shade
+		intensity = kShade + max(0, min(intensity, 1))*(1-kShade)
+		shadedColor := ShadeColor(clr, intensity)
 
 		d1 := calculateDepth(v1.Position, camera)
 		d2 := calculateDepth(v2.Position, camera)
 		d3 := calculateDepth(v3.Position, camera)
-		// q := camera.Far / (camera.Far - camera.Near)
-		// q := 1.0
+
 		var w1, w2, w3 float64
 		if TexturePerspective {
 			w1, w2, w3 = d1, d2, d3
@@ -284,13 +318,9 @@ func DrawTriangle3D(
 			w1, w2, w3 = 1.0, 1.0, 1.0
 		}
 
-		// fmt.Println("op, d", v1, d1)
-		// fmt.Println("op, d", v2, d2)
-		// fmt.Println("op, d", v3, d3)
-		//
-		ip2 := ImgPoint{p2.X, p2.Y, d2, v2.U / w2, v2.V / w2}
-		ip1 := ImgPoint{p1.X, p1.Y, d1, v1.U / w1, v1.V / w1}
-		ip3 := ImgPoint{p3.X, p3.Y, d3, v3.U / w3, v3.V / w3}
+		ip2 := ImgPoint{pi2.X, pi2.Y, d2, v2.U / w2, v2.V / w2}
+		ip1 := ImgPoint{pi1.X, pi1.Y, d1, v1.U / w1, v1.V / w1}
+		ip3 := ImgPoint{pi3.X, pi3.Y, d3, v3.U / w3, v3.V / w3}
 		DrawTriangle2D2(img, ip1, ip2, ip3, shadedColor, depthBuffer, texture, intensity)
 	}
 }
@@ -659,7 +689,12 @@ func renderFlatBottomTriangle(img *image.RGBA, texture *image.RGBA, v [3]Vertex2
 
 				// currentColor := img.RGBAAt(x, y)
 				// newColor := CombineColors(clr, currentColor)
-				img.SetRGBA(x, y, clr)
+				// img.SetRGBA(x, y, clr)
+				ii := (imageSize.X*y + x) * 4
+				s := img.Pix[ii : ii+3] // Small cap improves performance, see https://golang.org/issue/27857
+				s[0] = clr.R
+				s[1] = clr.G
+				s[2] = clr.B
 			}
 		}
 	}
@@ -764,7 +799,12 @@ func renderFlatTopTriangle(img *image.RGBA, texture *image.RGBA, v [3]Vertex2, d
 				clr = ShadeColor(clr, shade)
 				// currentColor := img.RGBAAt(x, y)
 				// newColor := CombineColors(clr, currentColor)
-				img.SetRGBA(x, y, clr)
+				// img.SetRGBA(x, y, clr)
+				ii := (imageSize.X*y + x) * 4
+				s := img.Pix[ii : ii+3] // Small cap improves performance, see https://golang.org/issue/27857
+				s[0] = clr.R
+				s[1] = clr.G
+				s[2] = clr.B
 			}
 		}
 	}
@@ -1356,9 +1396,30 @@ func DrawRayCast(scene *Scene, img *image.RGBA) {
 func drawCrossHair(img *image.RGBA) {
 	x, y := img.Bounds().Dx()/2, img.Bounds().Dy()/2
 	k := 5
-	clr := Gray.ToRGBA()
-	DrawLine(img, Int_2D{x + k, y}, Int_2D{x - k, y}, clr)
-	DrawLine(img, Int_2D{x, y + k}, Int_2D{x, y - k}, clr)
+	white := color.RGBA{255, 255, 255, 255}
+	black := color.RGBA{0, 0, 0, 255}
+
+	callback := func(x, y int) {
+		inColor := img.At(x, y)
+		r, g, b, _ := inColor.RGBA()
+
+		r, g, b = r>>8, g>>8, b>>8
+
+		avgChannel := (r + g + b) / 3
+		var clr color.RGBA
+		if avgChannel > 125 {
+			clr = black
+		} else {
+			clr = white
+		}
+		img.SetRGBA(x, y, clr)
+	}
+
+	GenerateLine(Int_2D{x + k, y}, Int_2D{x + 1, y}, callback)
+	GenerateLine(Int_2D{x - k, y}, Int_2D{x - 1, y}, callback)
+	GenerateLine(Int_2D{x, y + k}, Int_2D{x, y - k}, callback)
+	// DrawLine(img, Int_2D{x + k, y}, Int_2D{x - k, y}, clr)
+	// DrawLine(img, Int_2D{x, y + k}, Int_2D{x, y - k}, clr)
 }
 
 func DrawScene(scene *Scene, img *image.RGBA, depthBuffer *DepthBuffer) {

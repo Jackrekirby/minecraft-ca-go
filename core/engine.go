@@ -5,7 +5,6 @@ import (
 	"image"
 	"time"
 
-	"golang.org/x/image/draw"
 	"golang.org/x/image/font"
 )
 
@@ -43,7 +42,9 @@ func runRenderLoop(scene *Scene, img *image.RGBA, scale int, depthBuffer *DepthB
 	for scene.GameState != Quit {
 		startTime := time.Now()
 		DrawScene(scene, img, depthBuffer)
-		OutputSceneImage(scaleImage(img, float64(scale), draw.NearestNeighbor))
+		// scaledImage := scaleImage(img, float64(scale), draw.NearestNeighbor)
+		scaledImage := scaleImageNearestNeighbor(img, scale)
+		OutputSceneImage(scaledImage)
 		elapsedTime := time.Since(startTime)
 		scene.RecordedFramesPerSecond = int(1.0 / elapsedTime.Seconds())
 		sleepTime := period - elapsedTime

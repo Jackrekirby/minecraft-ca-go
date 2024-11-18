@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"image"
 	"time"
-
-	"golang.org/x/image/draw"
 )
 
 type RunStatistics struct {
@@ -184,7 +182,9 @@ func Render(scene *Scene, img *image.RGBA, scale int, depthBuffer *DepthBuffer, 
 
 	var scaledImage *image.RGBA
 	if scale > 1 {
-		scaledImage = scaleImage(img, float64(scale), draw.NearestNeighbor)
+		// scaledImage = img
+		scaledImage = scaleImageNearestNeighbor(img, scale)
+		// scaledImage = scaleImage(img, float64(scale), draw.NearestNeighbor)
 	} else {
 		scaledImage = img
 	}

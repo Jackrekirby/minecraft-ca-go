@@ -10,8 +10,11 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"sync"
 	"time"
+	"unsafe"
 
 	"golang.org/x/image/draw"
 )
@@ -101,6 +104,84 @@ func scaleImage(original *image.RGBA, multiplier float64, interpolator draw.Inte
 
 	// Draw the original image into the new scaled image
 	interpolator.Scale(scaledImage, scaledImage.Rect, original, original.Bounds(), draw.Over, nil)
+
+	return scaledImage
+}
+
+func scaleImageNearestNeighbor(original *image.RGBA, scaleFactor int) *image.RGBA {
+	if scaleFactor <= 0 || (scaleFactor&(scaleFactor-1)) != 0 {
+		panic("scaleFactor must be a power of 2")
+	}
+
+	// Get the original image dimensions
+	srcWidth := original.Bounds().Dx()
+	srcHeight := original.Bounds().Dy()
+
+	// Calculate the new dimensions
+	newWidth := srcWidth * scaleFactor
+	newHeight := srcHeight * scaleFactor
+
+	// Create a new image for the scaled result
+	scaledImage := image.NewRGBA(image.Rect(0, 0, newWidth, newHeight))
+
+	// Get the pixel data (byte slices)
+	srcPixels := original.Pix
+	dstPixels := scaledImage.Pix
+
+	// Stride calculations
+	srcStride := original.Stride
+	dstStride := scaledImage.Stride
+
+	// Use unsafe pointers for memory manipulation
+	srcPtr := unsafe.Pointer(&srcPixels[0])
+	dstPtr := unsafe.Pointer(&dstPixels[0])
+
+	// Number of CPU cores to use
+	numWorkers := runtime.NumCPU()
+	var wg sync.WaitGroup
+
+	// Parallelize by dividing work into strips of rows
+	rowsPerWorker := newHeight / numWorkers
+
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
+
+		go func(workerID int) {
+			defer wg.Done()
+
+			// Calculate the range of rows each worker will process
+			startRow := workerID * rowsPerWorker
+			endRow := startRow + rowsPerWorker
+			if workerID == numWorkers-1 {
+				endRow = newHeight
+			}
+
+			// Process the rows
+			for y := startRow; y < endRow; y++ {
+				// Corresponding source Y coordinate
+				srcY := y / scaleFactor
+				srcRowStart := uintptr(srcY) * uintptr(srcStride)
+
+				dstRowStart := uintptr(y) * uintptr(dstStride)
+
+				// Process each pixel in the row
+				for x := 0; x < newWidth; x++ {
+					// Corresponding source X coordinate
+					srcX := x / scaleFactor
+					srcIndex := srcRowStart + uintptr(srcX)*4
+					dstIndex := dstRowStart + uintptr(x)*4
+
+					// Direct memory access for copying pixels (4 bytes per pixel)
+					// This is raw memory manipulation, no bounds checking, extremely fast
+					copy((*[4]byte)(unsafe.Pointer(uintptr(dstPtr) + dstIndex))[:],
+						(*[4]byte)(unsafe.Pointer(uintptr(srcPtr) + srcIndex))[:])
+				}
+			}
+		}(i)
+	}
+
+	// Wait for all workers to finish
+	wg.Wait()
 
 	return scaledImage
 }

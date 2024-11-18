@@ -243,6 +243,7 @@ func runProgram2Inner() {
 		// fmt.Println("Length of jsData:", jsData.Length())
 		js.CopyBytesToJS(jsData, img.Pix)
 		ctx.Call("putImageData", sceneImageData, 0, 0)
+
 	}
 
 	render := func(event *GameEvent, gameLoopManager *GameLoopManager) {
@@ -282,15 +283,13 @@ func OutputSceneImage(img *image.RGBA) {
 }
 
 func HandleMouseEvents(scene *Scene, mouse *Mouse) {
-
-	rotationSpeed := 0.005 // Adjust this value for sensitivity
 	camera := &scene.Camera
 
 	// Update Yaw (Y axis rotation) based on horizontal mouse movement
-	camera.Rotation.Y -= float64(mouse.Dx) * rotationSpeed
+	camera.Rotation.Y -= mouse.Dx
 
 	// Calculate pitch (X axis rotation) based on vertical mouse movement
-	dPitch := float64(mouse.Dy) * rotationSpeed
+	dPitch := mouse.Dy
 
 	// Update only the pitch (X axis rotation), without affecting roll (Z axis rotation)
 	camera.Rotation.X -= dPitch
@@ -427,20 +426,32 @@ func WriteGameSame(gameSave GameSave) {
 
 // MOUSE CONTROL
 
+func JSGetNow() float64 {
+	return js.Global().Get("performance").Call("now").Float()
+}
+
 func buildOnMouseMoveCallback(scene *Scene, mouse *Mouse) func(this js.Value, args []js.Value) any {
-	const maxDelta float64 = 30
+	const maxDelta float64 = 0.1
+	const scaleMovement float64 = 0.00005
+	var lastTime float64 = JSGetNow()
 	callback := func(this js.Value, args []js.Value) any {
 		event := args[0]
+		currentTime := js.Global().Get("performance").Call("now").Float()
+		// Calculate time delta (in milliseconds)
+		timeDelta := min(currentTime-lastTime, 16.67) // clamp at 60fps
+		lastTime = currentTime
 		if js.Global().Get("document").Get("pointerLockElement").Truthy() {
-			deltaX := event.Get("movementX").Int()
-			deltaY := event.Get("movementY").Int()
+			deltaX := event.Get("movementX").Float() * timeDelta * scaleMovement
+			deltaY := event.Get("movementY").Float() * timeDelta * scaleMovement
 
-			if math.Abs(float64(deltaX)) > maxDelta || math.Abs(float64(deltaY)) > maxDelta {
+			if math.Abs(deltaX) > maxDelta || math.Abs(deltaY) > maxDelta {
 				return nil
 			}
 
 			mouse.Dx = deltaX
 			mouse.Dy = deltaY
+
+			// fmt.Println(deltaX, deltaY)
 
 			HandleMouseEvents(scene, mouse)
 
@@ -460,8 +471,8 @@ func onPointerLockChange(this js.Value, args []js.Value) any {
 }
 
 type Mouse struct {
-	Dx int // pixels
-	Dy int // pixels
+	Dx float64 // pixels
+	Dy float64 // pixels
 }
 
 func AddMouseListener(scene *Scene, mouse *Mouse) func() {
@@ -470,6 +481,13 @@ func AddMouseListener(scene *Scene, mouse *Mouse) func() {
 	if err != nil {
 		showWelcomePage = true
 	}
+
+	// handlePointerLockChange := func(this js.Value, args []js.Value) any {
+	// 	fmt.Println("handlePointerLockChange")
+	// 	return nil
+	// }
+
+	// js.Global().Get("document").Call("addEventListener", "pointerlockchange", js.FuncOf(handlePointerLockChange))
 
 	// Create JavaScript event listeners
 	mouseMoveCallback := js.FuncOf(buildOnMouseMoveCallback(scene, mouse))
@@ -642,7 +660,7 @@ func SetupMouseClickEvents(scene *Scene) {
 			_, selectedPos := GetRayCastPositions(scene)
 			if selectedPos != nil {
 				selectedBlock = scene.World.GetBlock(*selectedPos)
-				// fmt.Println("Selected Block", selectedBlock.Type(), selectedBlock)
+				fmt.Println("Selected Block", selectedBlock.Type(), selectedBlock)
 			}
 
 		}
