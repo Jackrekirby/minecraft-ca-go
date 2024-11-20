@@ -17,6 +17,27 @@ import (
 	"golang.org/x/image/draw"
 )
 
+type State struct {
+	scale       int
+	scene       Scene
+	sceneImage  *image.RGBA
+	scaledImage *image.RGBA
+	depthBuffer DepthBuffer
+	quit        chan struct{}
+}
+
+func MainWebAssembly() {
+	jsProgramWrapper := func(_ js.Value, _ []js.Value) interface{} {
+		go runProgram()
+		return nil
+	}
+
+	js.Global().Set("runProgram", js.FuncOf(jsProgramWrapper))
+
+	// This is required to prevent the Go runtime from exiting.
+	select {}
+}
+
 func drawFrame(frameBuffer *image.RGBA, width, height int, ctx js.Value) {
 	// Convert Go's RGBA buffer to JS Uint8ClampedArray
 	jsData := js.Global().Get("Uint8ClampedArray").New(len(frameBuffer.Pix))
@@ -29,184 +50,86 @@ func drawFrame(frameBuffer *image.RGBA, width, height int, ctx js.Value) {
 	ctx.Call("putImageData", imgData, 0, 0)
 }
 
-func MainWebAssembly() {
-	// This is required to prevent the Go runtime from exiting.
-	// c := make(chan struct{}, 0)
-
-	js.Global().Set("runProgram", js.FuncOf(runProgram2))
-
-	// Wait indefinitely.
-	// <-c
-	select {}
-}
-
-func runProgram(this js.Value, args []js.Value) interface{} {
-
-	document := js.Global().Get("document")
-	canvas := document.Call("getElementById", "canvas")
-	ctx := canvas.Call("getContext", "2d")
-
-	scale := 2
-
-	// Get the current screen size
-	screenWidth := js.Global().Get("window").Get("innerWidth").Int() / scale * scale
-	screenHeight := js.Global().Get("window").Get("innerHeight").Int() / scale * scale
-
-	// Choose the shorter dimension to maintain aspect ratio
-	// screenShortDim := min(screenWidth, screenHeight)
-
-	// Set canvas size to fill the smaller screen dimension
-	canvas.Set("width", screenWidth)
-	canvas.Set("height", screenHeight)
-
-	// Create a new RGBA image buffer with the default resolution (can be adjusted if needed)
-	width := screenWidth / scale
-	height := screenHeight / scale
-
-	// Create a new RGBA image buffer
-	sceneImage := image.NewRGBA(image.Rect(0, 0, width, height))
-
-	// Run the engine or any other processes to fill the framebuffer
-	go RunEngine(sceneImage, scale)
-
-	// Rendering loop to continuously update the canvas
-	var renderLoop js.Func
-	renderLoop = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-		// Call the drawFrame function, passing the current canvas size
-		drawFrame(sceneImage, screenWidth, screenHeight, ctx)
-		js.Global().Call("requestAnimationFrame", renderLoop)
-		return nil
-	})
-
-	// Start the render loop
-	js.Global().Call("requestAnimationFrame", renderLoop)
-	return nil
-}
-
-func runProgram2(_ js.Value, _ []js.Value) interface{} {
-	go runProgram2Inner()
-	return nil
-}
-
-// var sceneImageData js.Value
-
-// type State struct {
-// 	sceneImageData *js.Value
-// }
-
-func sizeCanvas(
-	sceneImage **image.RGBA,
-	depthBuffer **DepthBuffer,
-	scale int,
-	scene *Scene,
-) (width int, height int) {
+func sizeCanvas(state *State) (width int, height int) {
 	document := js.Global().Get("document")
 	canvas := document.Call("getElementById", "canvas")
 
 	screenWidth := js.Global().Get("window").Get("innerWidth").Int()
 	screenHeight := js.Global().Get("window").Get("innerHeight").Int()
 
-	canvasWidth := screenWidth / scale * scale
-	canvasHeight := screenHeight / scale * scale
+	canvasWidth := screenWidth / state.scale * state.scale
+	canvasHeight := screenHeight / state.scale * state.scale
 
 	canvas.Set("width", canvasWidth)
 	canvas.Set("height", canvasHeight)
 
-	width = canvasWidth / scale
-	height = canvasHeight / scale
+	width = canvasWidth / state.scale
+	height = canvasHeight / state.scale
 
-	// newSceneImage := image.NewRGBA(image.Rect(0, 0, width, height))
-	*sceneImage = image.NewRGBA(image.Rect(0, 0, width, height))
-	// fmt.Println("sceneImage1", sceneImage)
-	newDepthBuffer := make(DepthBuffer, width*height)
-	*depthBuffer = &newDepthBuffer
+	state.sceneImage = image.NewRGBA(image.Rect(0, 0, width, height))
+	state.scaledImage = image.NewRGBA(image.Rect(0, 0, canvasWidth, canvasHeight))
+	state.depthBuffer = make(DepthBuffer, width*height)
 
 	jsData := js.Global().Get("Uint8ClampedArray").New(canvasWidth * canvasHeight * 4)
-	js.CopyBytesToJS(jsData, scaleImage(*sceneImage, float64(scale), draw.NearestNeighbor).Pix)
+	js.CopyBytesToJS(jsData, scaleImage(state.sceneImage, float64(state.scale), draw.NearestNeighbor).Pix)
 
 	js.Global().Set("sceneImageData", js.Global().Get("ImageData").New(jsData, canvasWidth, canvasHeight))
-	// state.sceneImageData = &x
-	// x := &js.Global().Get("ImageData").New(jsData, canvasWidth, canvasHeight)
 
 	fmt.Println("Size [canvas, image]", canvasWidth, canvasHeight, width, height)
-	// fmt.Println("sceneImage1", sceneImage)
-	scene.Camera.AspectRatio = float64(height) / float64(width)
+	state.scene.Camera.AspectRatio = float64(height) / float64(width)
 	return
 }
 
-func runProgram2Inner() {
-	// defer func() {
-	// 	if r := recover(); r != nil {
-	// 		fmt.Println("Recovered from panic:", r)
-	// 	}
-	// }()
+func createGameUpdate(state *State) func(event *GameEvent, gameLoopManager *GameLoopManager) {
+	update := func(event *GameEvent, gameLoopManager *GameLoopManager) {
+		// keyboardManager.Update()
+		Update(&state.scene)
+		if state.scene.GameState == Quit {
+			close(state.quit)
+		}
+	}
+	return update
+}
 
+func createGameRender(state *State) func(event *GameEvent, gameLoopManager *GameLoopManager) {
 	document := js.Global().Get("document")
 	canvas := document.Call("getElementById", "canvas")
 	ctx := canvas.Call("getContext", "2d")
 
-	scale := 1
-
-	scene := Scene{}
-
-	var sceneImage *image.RGBA
-	var depthBuffer *DepthBuffer
-	// var state *State = &State{}
-	sizeCanvas(&sceneImage, &depthBuffer, scale, &scene)
-	// fmt.Println("sceneImageData", js.Global().Get("sceneImageData"))
-	// fmt.Println("depthBuffer", depthBuffer != nil)
-	// // Get the current screen size
-	// screenWidth := js.Global().Get("window").Get("innerWidth").Int() / scale * scale
-	// screenHeight := js.Global().Get("window").Get("innerHeight").Int() / scale * scale
-
-	// // Choose the shorter dimension to maintain aspect ratio
-	// // screenShortDim := min(screenWidth, screenHeight)
-
-	// // Set canvas size to fill the smaller screen dimension
-	// canvas.Set("width", screenWidth)
-	// canvas.Set("height", screenHeight)
-
-	// // Create a new RGBA image buffer with the default resolution (can be adjusted if needed)
-	// width := screenWidth / scale
-	// height := screenHeight / scale
-
-	// // Create a new RGBA image buffer
-	// sceneImage := image.NewRGBA(image.Rect(0, 0, width, height))
-
-	// fmt.Println("sw, sh, w, h", screenWidth, screenHeight, width, height)
-
-	// Run the engine or any other processes to fill the framebuffer
-	// updateInterval := (1000000 / 10) * time.Microsecond
-	// renderInterval := (1000000 / 10) * time.Microsecond
-	sleepUndershoot := 5 * time.Millisecond
-
-	quit := make(chan struct{})
-
-	InitialiseScene(&scene, sceneImage, scale)
-
-	mouse := Mouse{}
-	cleanupMouseListener := AddMouseListener(&scene, &mouse)
-	defer cleanupMouseListener()
-	// HandleMouseEvents(&scene, &mouse)
-	SetupMouseClickEvents(&scene)
-	go KeyboardEvents(&scene)
-	go runGameSave(&scene) // consider moving inside update
-	// keyboardManager := KeyboardManager{}
-	// keyboardManager.Initialise(&scene)
-
-	update := func(event *GameEvent, gameLoopManager *GameLoopManager) {
-		// keyboardManager.Update()
-		Update(&scene)
-		if scene.GameState == Quit {
-			close(quit)
+	outputSceneImage := func(img *image.RGBA) {
+		sceneImageData := js.Global().Get("sceneImageData")
+		jsData := sceneImageData.Get("data")
+		if !jsData.Truthy() {
+			fmt.Println("sceneImageData", sceneImageData)
+			fmt.Println("jsData", jsData)
+			return
 		}
+		js.CopyBytesToJS(jsData, img.Pix)
+		ctx.Call("putImageData", sceneImageData, 0, 0)
+
 	}
 
-	// jsData := js.Global().Get("Uint8ClampedArray").New(screenWidth * screenHeight * 4)
-	// js.CopyBytesToJS(jsData, scaleImage(*sceneImage, float64(scale), draw.NearestNeighbor).Pix)
+	render := func(event *GameEvent, gameLoopManager *GameLoopManager) {
+		time.Sleep(1 * time.Millisecond)
+		Render(&state.scene, state.sceneImage, state.scaledImage, state.scale, &state.depthBuffer, outputSceneImage)
+	}
+	return render
+}
 
-	// sceneImageData := js.Global().Get("ImageData").New(jsData, screenWidth, screenHeight)
+func createGameUpdateStatistics(state *State) func(event *GameEvent, gameLoopManager *GameLoopManager) {
+	updateStatistics := func(event *GameEvent, gameLoopManager *GameLoopManager) {
+		renderEvent := &gameLoopManager.Events[1]
+		state.scene.RecordedFramesPerSecond = renderEvent.CallCount
+		renderEvent.CallCount = 0
 
+		updateEvent := &gameLoopManager.Events[0]
+		state.scene.RecordedStepsPerSecond = updateEvent.CallCount
+		updateEvent.CallCount = 0
+	}
+	return updateStatistics
+}
+
+func createOnResizeListener(state *State) {
 	var debounceTimer *time.Timer
 	onResize := func(this js.Value, args []js.Value) interface{} {
 		// If a previous timer exists, stop it
@@ -216,7 +139,7 @@ func runProgram2Inner() {
 
 		// Create a new timer that waits for debounceDuration
 		callback := func() {
-			sizeCanvas(&sceneImage, &depthBuffer, scale, &scene)
+			sizeCanvas(state)
 		}
 
 		debounceTimer = time.AfterFunc(1*time.Second, callback)
@@ -226,89 +149,53 @@ func runProgram2Inner() {
 	// Set up the resize event listener
 	resizeCallback := js.FuncOf(onResize)
 	js.Global().Call("addEventListener", "resize", resizeCallback)
+}
 
-	// sceneImageData := js.Global().Get("ImageData")
-	outputSceneImage := func(img *image.RGBA) {
-		sceneImageData := js.Global().Get("sceneImageData")
-		// drawFrame(img, screenWidth, screenHeight, ctx)
-		// fmt.Println("sceneImageData", sceneImageData)
-		jsData := sceneImageData.Get("data")
-		// fmt.Println("jsData", jsData)
-		if !jsData.Truthy() {
-			fmt.Println("sceneImageData", sceneImageData)
-			fmt.Println("jsData", jsData)
-			return
-		}
-		// fmt.Println("Length of sceneImageData:", len(img.Pix))
-		// fmt.Println("Length of jsData:", jsData.Length())
-		js.CopyBytesToJS(jsData, img.Pix)
-		ctx.Call("putImageData", sceneImageData, 0, 0)
+func runProgram() {
+	state := State{}
+	state.scale = 1
+	state.scene = Scene{}
+	state.quit = make(chan struct{})
 
-	}
+	sizeCanvas(&state)
+	InitialiseScene(&state.scene, state.sceneImage, state.scale)
+	cleanupMouseListener := AddMouseListener(&state.scene)
+	defer cleanupMouseListener()
+	SetupMouseClickEvents(&state.scene)
+	go KeyboardEvents(&state.scene)
+	go RunGameSave(&state.scene) // consider moving inside update
 
-	render := func(event *GameEvent, gameLoopManager *GameLoopManager) {
-		time.Sleep(1 * time.Millisecond)
-		Render(&scene, sceneImage, scale, depthBuffer, outputSceneImage)
-	}
-
-	updateStatistics := func(event *GameEvent, gameLoopManager *GameLoopManager) {
-		renderEvent := &gameLoopManager.Events[1]
-		scene.RecordedFramesPerSecond = renderEvent.CallCount
-		renderEvent.CallCount = 0
-
-		updateEvent := &gameLoopManager.Events[0]
-		scene.RecordedStepsPerSecond = updateEvent.CallCount
-		updateEvent.CallCount = 0
-	}
+	createOnResizeListener(&state)
 
 	g := GameLoopManager{}
 
 	events := [3]GameEvent{
-		CreateGameEvent("Update", (1000/10)*time.Millisecond, update),
-		CreateGameEvent("Render", (1_000_000/60)*time.Microsecond, render),
-		CreateGameEvent("Statistics", (1000/1)*time.Millisecond, updateStatistics),
+		CreateGameEvent("Update", (1000/10)*time.Millisecond, createGameUpdate(&state)),
+		CreateGameEvent("Render", (1_000_000/60)*time.Microsecond, createGameRender(&state)),
+		CreateGameEvent("Statistics", (1000/1)*time.Millisecond, createGameUpdateStatistics(&state)),
 	}
 
-	g.Initialise(events, sleepUndershoot, quit)
+	sleepUndershoot := 5 * time.Millisecond
+	g.Initialise(events, sleepUndershoot, state.quit)
 
 	g.Run()
-
-	// runStatistics := RunGameLoop(updateInterval, renderInterval, update, render, sleepUndershoot, quit, &scene)
-
-	// fmt.Println(runStatistics.String())
 }
 
 func OutputSceneImage(img *image.RGBA) {
 	// do nothing on wasm
 }
 
-func HandleMouseEvents(scene *Scene, mouse *Mouse) {
+func HandleMouseEvents(scene *Scene, x, y float64) {
 	camera := &scene.Camera
 
 	// Update Yaw (Y axis rotation) based on horizontal mouse movement
-	camera.Rotation.Y -= mouse.Dx
+	camera.Rotation.Y -= x
 
 	// Calculate pitch (X axis rotation) based on vertical mouse movement
-	dPitch := mouse.Dy
+	dPitch := y
 
 	// Update only the pitch (X axis rotation), without affecting roll (Z axis rotation)
 	camera.Rotation.X -= dPitch
-
-	// Ensure roll (Z axis rotation) remains unchanged
-	// camera.Rotation.Z = 0.0
-
-	// rotationSpeed := 0.005 // Adjust this value for sensitivity
-	// camera := &scene.Camera
-
-	// // Update Yaw (Y axis rotation) based on horizontal mouse movement
-	// camera.Rotation.Y -= float64(mouse.Dx) * rotationSpeed
-
-	// // Calculate pitch (X and Z axis rotation) based on vertical mouse movement
-	// dPitch := float64(mouse.Dy) * rotationSpeed
-
-	// // Distribute dPitch between X and Z axes based on current Y rotation (yaw)
-	// camera.Rotation.X -= dPitch * math.Cos(camera.Rotation.Y)
-	// camera.Rotation.Z -= dPitch * math.Sin(camera.Rotation.Y)
 
 	// Clamp camera X rotation to avoid flipping (e.g., -90 to +90 degrees)
 	if camera.Rotation.X > DegToRad(90) {
@@ -317,64 +204,17 @@ func HandleMouseEvents(scene *Scene, mouse *Mouse) {
 	if camera.Rotation.X < DegToRad(-90) {
 		camera.Rotation.X = DegToRad(-90)
 	}
-
-	// // Optional: Clamp Z rotation (if needed)
-	// if camera.Rotation.Z > DegToRad(90) {
-	// 	camera.Rotation.Z = DegToRad(90)
-	// }
-	// if camera.Rotation.Z < DegToRad(-90) {
-	// 	camera.Rotation.Z = DegToRad(-90)
-	// }
-
-	// Reset mouse deltas
-	mouse.Dx = 0
-	mouse.Dy = 0
 }
 
 func KeyboardEvents(scene *Scene) {
-	// do nothing on wasm
-	// fmt.Println("WASM Keyboard Events")
-
 	onKeyDownMC := func(this js.Value, p []js.Value) interface{} {
-		// fmt.Println("Key Down")
-		// Get the key code or key name
 		key := p[0].Get("key").String()
-		// fmt.Printf("Key Down: %s\n", key)
 		HandleKeyPress(scene, key, 0.3, DegToRad(5))
 		return nil
 	}
 
-	// onKeyUpMC := func(this js.Value, p []js.Value) interface{} {
-	// 	// Get the key code or key name
-	// 	key := p[0].Get("key").String()
-	// 	fmt.Printf("Key Up: %s\n", key)
-
-	// 	return nil
-	// }
-
-	// JavaScript function to capture keyboard events
-	// js.Global().Set("onKeyDownMC", js.FuncOf(onKeyDownMC))
-
 	canvas := js.Global().Get("document").Call("getElementById", "canvas")
 	canvas.Call("addEventListener", "keydown", js.FuncOf(onKeyDownMC))
-	// js.Global().Set("onKeyUpMC", js.FuncOf(onKeyUpMC))
-}
-
-type KeyboardManager struct {
-	quitKey string
-}
-
-// Initialise the keyboard manager
-func (km *KeyboardManager) Initialise(scene *Scene) {
-	KeyboardEvents(scene)
-}
-
-// Update method to handle keyboard events
-func (km *KeyboardManager) Update() {
-}
-
-// Clean up resources (optional method)
-func (km *KeyboardManager) Destroy() {
 }
 
 //go:embed assets
@@ -430,7 +270,7 @@ func JSGetNow() float64 {
 	return js.Global().Get("performance").Call("now").Float()
 }
 
-func buildOnMouseMoveCallback(scene *Scene, mouse *Mouse) func(this js.Value, args []js.Value) any {
+func buildOnMouseMoveCallback(scene *Scene) func(this js.Value, args []js.Value) any {
 	const maxDelta float64 = 0.1
 	const scaleMovement float64 = 0.00005
 	var lastTime float64 = JSGetNow()
@@ -448,12 +288,9 @@ func buildOnMouseMoveCallback(scene *Scene, mouse *Mouse) func(this js.Value, ar
 				return nil
 			}
 
-			mouse.Dx = deltaX
-			mouse.Dy = deltaY
-
 			// fmt.Println(deltaX, deltaY)
 
-			HandleMouseEvents(scene, mouse)
+			HandleMouseEvents(scene, deltaX, deltaY)
 
 			// Log the camera movement
 			// js.Global().Get("console").Call("log", "Camera move: deltaX =", deltaX, ", deltaY =", deltaY)
@@ -475,22 +312,15 @@ type Mouse struct {
 	Dy float64 // pixels
 }
 
-func AddMouseListener(scene *Scene, mouse *Mouse) func() {
+func AddMouseListener(scene *Scene) func() {
 	var showWelcomePage bool
 	err := ReadFromLocalStorage("ShowWelcomePage", &showWelcomePage)
 	if err != nil {
 		showWelcomePage = true
 	}
 
-	// handlePointerLockChange := func(this js.Value, args []js.Value) any {
-	// 	fmt.Println("handlePointerLockChange")
-	// 	return nil
-	// }
-
-	// js.Global().Get("document").Call("addEventListener", "pointerlockchange", js.FuncOf(handlePointerLockChange))
-
 	// Create JavaScript event listeners
-	mouseMoveCallback := js.FuncOf(buildOnMouseMoveCallback(scene, mouse))
+	mouseMoveCallback := js.FuncOf(buildOnMouseMoveCallback(scene))
 	// pointerLockChangeCallback := js.FuncOf(onPointerLockChange)
 
 	// Add the event listeners to the document

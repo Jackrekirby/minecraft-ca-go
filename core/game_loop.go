@@ -176,14 +176,14 @@ func RunGameLoop(
 	}
 }
 
-func Render(scene *Scene, img *image.RGBA, scale int, depthBuffer *DepthBuffer, outputSceneImage func(*image.RGBA)) {
+func Render(scene *Scene, img *image.RGBA, scaledImg *image.RGBA, scale int, depthBuffer *DepthBuffer, outputSceneImage func(*image.RGBA)) {
 	// startTime := NowInSeconds()
 	DrawScene(scene, img, depthBuffer)
 
 	var scaledImage *image.RGBA
 	if scale > 1 {
 		// scaledImage = img
-		scaledImage = scaleImageNearestNeighbor(img, scale)
+		scaledImage = scaleImageNearestNeighbor(img, scaledImg, scale)
 		// scaledImage = scaleImage(img, float64(scale), draw.NearestNeighbor)
 	} else {
 		scaledImage = img
@@ -236,42 +236,8 @@ func Update(scene *Scene) {
 	// }
 }
 
-func RunEngine3(sceneImage *image.RGBA, scale int) {
-	updateInterval := (1000 / 5) * time.Millisecond     // 5 FPS
-	renderInterval := (1000000 / 10) * time.Microsecond // 60 FPS
-	sleepUndershoot := 5 * time.Millisecond
-
-	quit := make(chan struct{})
-
-	scene := Scene{}
-	InitialiseScene(&scene, sceneImage, scale)
-	go KeyboardEvents(&scene)
-	// keyboardManager := KeyboardManager{}
-	// keyboardManager.Initialise(&scene)
-
-	update := func(delta time.Duration) {
-		// keyboardManager.Update()
-		Update(&scene)
-		if scene.GameState == Quit {
-			close(quit)
-		}
-	}
-
-	width, height := sceneImage.Bounds().Dx(), sceneImage.Bounds().Dy()
-	depthBuffer := make(DepthBuffer, width*height)
-
-	render := func(delta time.Duration) {
-		Render(&scene, sceneImage, scale, &depthBuffer, OutputSceneImage)
-	}
-
-	runStatistics := RunGameLoop(updateInterval, renderInterval, update, render, sleepUndershoot, quit, &scene)
-
-	// keyboardManager.Destroy()
-
-	fmt.Println(runStatistics.String())
-}
-
 func RunEngine2(sceneImage *image.RGBA, scale int) {
+
 	sleepUndershoot := 10 * time.Millisecond
 	quit := make(chan struct{})
 
@@ -293,10 +259,11 @@ func RunEngine2(sceneImage *image.RGBA, scale int) {
 	}
 
 	width, height := sceneImage.Bounds().Dx(), sceneImage.Bounds().Dy()
+	scaledImage := image.NewRGBA(image.Rect(0, 0, width*scale, height*scale))
 	depthBuffer := make(DepthBuffer, width*height)
 
 	render := func(event *GameEvent, gameLoopManager *GameLoopManager) {
-		Render(&scene, sceneImage, scale, &depthBuffer, OutputSceneImage)
+		Render(&scene, sceneImage, scaledImage, scale, &depthBuffer, OutputSceneImage)
 	}
 
 	updateStatistics := func(event *GameEvent, gameLoopManager *GameLoopManager) {

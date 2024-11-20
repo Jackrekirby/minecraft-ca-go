@@ -108,7 +108,7 @@ func scaleImage(original *image.RGBA, multiplier float64, interpolator draw.Inte
 	return scaledImage
 }
 
-func scaleImageNearestNeighbor(original *image.RGBA, scaleFactor int) *image.RGBA {
+func scaleImageNearestNeighbor(original *image.RGBA, scaledImage *image.RGBA, scaleFactor int) *image.RGBA {
 	if scaleFactor <= 0 || (scaleFactor&(scaleFactor-1)) != 0 {
 		panic("scaleFactor must be a power of 2")
 	}
@@ -120,9 +120,6 @@ func scaleImageNearestNeighbor(original *image.RGBA, scaleFactor int) *image.RGB
 	// Calculate the new dimensions
 	newWidth := srcWidth * scaleFactor
 	newHeight := srcHeight * scaleFactor
-
-	// Create a new image for the scaled result
-	scaledImage := image.NewRGBA(image.Rect(0, 0, newWidth, newHeight))
 
 	// Get the pixel data (byte slices)
 	srcPixels := original.Pix

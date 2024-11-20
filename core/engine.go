@@ -37,76 +37,7 @@ func ratePerSecondToDuration(rate int) time.Duration {
 	return time.Duration(1.0/float64(rate)*1000.0) * time.Millisecond
 }
 
-func runRenderLoop(scene *Scene, img *image.RGBA, scale int, depthBuffer *DepthBuffer) {
-	period := ratePerSecondToDuration(scene.FramesPerSecond)
-	for scene.GameState != Quit {
-		startTime := time.Now()
-		DrawScene(scene, img, depthBuffer)
-		// scaledImage := scaleImage(img, float64(scale), draw.NearestNeighbor)
-		scaledImage := scaleImageNearestNeighbor(img, scale)
-		OutputSceneImage(scaledImage)
-		elapsedTime := time.Since(startTime)
-		scene.RecordedFramesPerSecond = int(1.0 / elapsedTime.Seconds())
-		sleepTime := period - elapsedTime
-		if sleepTime < 0 {
-			fmt.Println("Render loop cannot meet target rate")
-		}
-		time.Sleep(sleepTime)
-	}
-}
-
-func runGameLoop(scene *Scene) {
-	period := ratePerSecondToDuration(scene.StepsPerSecond)
-	subperiod := ratePerSecondToDuration(scene.SubStepsPerSecond)
-	scene.Iteration = 0
-	maxSubUpdateIterations := 50
-	for scene.GameState != Quit {
-		startTime := time.Now()
-		if scene.GameState == Playing || scene.GameState == Pausing {
-			numUpdates := 0
-			// Process User Inputs
-			if ProcessUserInputs(scene.Iteration, &scene.World) {
-				numUpdates += 1
-			}
-			// Process Sub Updates
-			totalSubUpdates := 0
-			i := 0
-			for i < maxSubUpdateIterations {
-				numSubUpdates := scene.World.SubUpdateWorld()
-				totalSubUpdates += numSubUpdates
-				if numSubUpdates == 0 {
-					break
-				}
-				time.Sleep(subperiod)
-				i++
-			}
-			scene.NumBlockSubUpdateIterationsInStep = i
-			scene.NumBlockSubUpdatesInStep = totalSubUpdates
-
-			// Process Updates
-			numUpdates += scene.World.UpdateWorld()
-
-			scene.NumBlockUpdatesInStep = numUpdates
-			scene.Iteration = scene.Iteration + 1
-			if scene.GameState == Pausing {
-				scene.GameState = Paused
-			}
-		}
-		elapsedTime := time.Since(startTime)
-		if elapsedTime.Seconds() < (1.0 / 10000.0) {
-			scene.RecordedStepsPerSecond = 10000.0
-		} else {
-			scene.RecordedStepsPerSecond = int(1.0 / elapsedTime.Seconds())
-		}
-		sleepTime := period - elapsedTime
-		if sleepTime < 0 {
-			fmt.Println("Game loop cannot meet target rate")
-		}
-		time.Sleep(sleepTime)
-	}
-}
-
-func runGameSave(scene *Scene) {
+func RunGameSave(scene *Scene) {
 	period := ratePerSecondToDuration(1)
 	// scene.Iteration = 0
 	for scene.GameState != Quit {
@@ -171,19 +102,4 @@ func InitialiseScene(scene *Scene, sceneImage *image.RGBA, scale int) {
 	SaveImage(&tilemap.Image, "output/tilemap.png")
 	// fmt.Println(tilemap.Metas)
 	scene.Tilemap = *tilemap
-}
-
-func RunEngine(sceneImage *image.RGBA, scale int) {
-	fmt.Println("Minecraft 3D Celluar Automata in Go")
-
-	scene := Scene{}
-	InitialiseScene(&scene, sceneImage, scale)
-
-	width, height := sceneImage.Bounds().Dx(), sceneImage.Bounds().Dy()
-	depthBuffer := make(DepthBuffer, width*height)
-
-	go KeyboardEvents(&scene)
-	go runRenderLoop(&scene, sceneImage, scale, &depthBuffer)
-	go runGameSave(&scene)
-	runGameLoop(&scene)
 }

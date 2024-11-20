@@ -122,6 +122,6 @@ https://github.com/markfarnan/go-canvas
 - [x] Automatically resize on window rescale
 - [x] Fix depth / uv coordinates on camera pitching
 - [x] Do not render opaque neighbouring faces
-- [ ] Cut triangles off outside viewport
+- [x] Cut triangles off outside viewport
 - [x] Add crosshair
-- [ ] Make crosshair change color for contrast
+- [x] Make crosshair change color for contrast

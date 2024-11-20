@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	_ "net/http/pprof"
-	"project_two/core"
+	"project_two/core2"
 	"time"
 )
 
@@ -29,7 +29,9 @@ func profile() {
 
 func main() {
 	//profile()
-	defer core.StartCPUProfile()()
-	core.RunEngineWrapper()
+	// defer core.StartCPUProfile()()
+	// core.StartMemProfile()
+	// core.RunEngineWrapper()
 	// core.RunOBJTest()
+	core2.Main()
 }

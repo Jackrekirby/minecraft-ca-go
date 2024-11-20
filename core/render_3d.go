@@ -591,7 +591,7 @@ func getUVColor(u, v, depth float64, texture *image.RGBA) color.RGBA {
 	} else {
 		// tx := float64(texture.Bounds().Dx())
 		// ty := float64(texture.Bounds().Dy())
-		return texture.At(int(u), int(v)).(color.RGBA)
+		return texture.RGBAAt(int(u), int(v))
 	}
 }
 
@@ -1400,7 +1400,7 @@ func drawCrossHair(img *image.RGBA) {
 	black := color.RGBA{0, 0, 0, 255}
 
 	callback := func(x, y int) {
-		inColor := img.At(x, y)
+		inColor := img.RGBAAt(x, y)
 		r, g, b, _ := inColor.RGBA()
 
 		r, g, b = r>>8, g>>8, b>>8
